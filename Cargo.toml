@@ -9,3 +9,4 @@ egui_extras = { version = "0.37.0", features = ["all_loaders"] }
 image = { version = "0.25.10", default-features = false, features = ["jpeg", "png", "gif", "webp", "bmp"] }
 open = "5.4.5"
 rfd = "0.17.2"
+trash = "5.2.9"
