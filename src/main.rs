@@ -204,6 +204,55 @@ impl App {
     }
 }
 
+/// Light red used for a favorited heart.
+const HEART_RED: egui::Color32 = egui::Color32::from_rgb(255, 120, 140);
+
+/// Draws a heart (a rotated square plus two circles) centered on `center`. `d` is the square's half-diagonal.
+fn draw_heart(painter: &egui::Painter, center: egui::Pos2, d: f32, color: egui::Color32) {
+    let cx = center.x;
+    let cy = center.y + 0.1 * d; // shift so the whole heart is vertically centered
+    let diamond = vec![
+        egui::pos2(cx, cy - d),
+        egui::pos2(cx + d, cy),
+        egui::pos2(cx, cy + d),
+        egui::pos2(cx - d, cy),
+    ];
+    painter.add(egui::Shape::convex_polygon(
+        diamond,
+        color,
+        egui::Stroke::NONE,
+    ));
+    let r = d * std::f32::consts::FRAC_1_SQRT_2;
+    painter.circle_filled(egui::pos2(cx - d / 2.0, cy - d / 2.0), r, color);
+    painter.circle_filled(egui::pos2(cx + d / 2.0, cy - d / 2.0), r, color);
+}
+
+/// A clickable heart: hollow outline when `filled` is false, solid light red when true.
+fn heart_button(ui: &mut egui::Ui, filled: bool) -> egui::Response {
+    let d = 7.0_f32;
+    let size = egui::vec2(2.414 * d + 10.0, 2.207 * d + 8.0);
+    let (rect, response) = ui.allocate_exact_size(size, egui::Sense::click());
+
+    if ui.is_rect_visible(rect) {
+        let scale = if response.hovered() { 1.1 } else { 1.0 };
+        let painter = ui.painter();
+        if filled {
+            draw_heart(painter, rect.center(), d * scale, HEART_RED);
+        } else {
+            // Hollow look: outline-colored heart with a smaller background-colored heart on top.
+            let outline = ui.visuals().widgets.inactive.fg_stroke.color;
+            draw_heart(painter, rect.center(), d * scale, outline);
+            draw_heart(
+                painter,
+                rect.center(),
+                d * scale * 0.72,
+                ui.visuals().panel_fill,
+            );
+        }
+    }
+    response
+}
+
 impl eframe::App for App {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         // Keyboard shortcuts
@@ -268,17 +317,18 @@ impl eframe::App for App {
                     ui.label(format!("{} / {}", self.index + 1, self.items.len()));
                 }
                 ui.separator();
-                let label = if is_fav {
-                    "★ Favorited"
-                } else {
-                    "☆ Favorite (F)"
-                };
-                if ui
-                    .add_enabled(current.is_some(), egui::Button::new(label))
-                    .clicked()
-                {
-                    self.toggle_favorite();
-                }
+                ui.add_enabled_ui(current.is_some(), |ui| {
+                    if heart_button(ui, is_fav)
+                        .on_hover_text(if is_fav {
+                            "Remove from favorites (F)"
+                        } else {
+                            "Add to favorites (F)"
+                        })
+                        .clicked()
+                    {
+                        self.toggle_favorite();
+                    }
+                });
                 ui.separator();
                 let is_image = current
                     .as_ref()
