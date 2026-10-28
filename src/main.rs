@@ -1,3 +1,4 @@
+#![windows_subsystem = "windows"]
 use eframe::egui;
 use std::collections::HashMap;
 use std::fs;
@@ -395,12 +396,26 @@ impl eframe::App for App {
 }
 
 fn main() -> eframe::Result {
+    fn load_icon() -> egui::IconData {
+        let img = image::load_from_memory(include_bytes!("../assets/icon.png"))
+            .expect("could not read icon.png")
+            .into_rgba8();
+        let (width, height) = img.dimensions();
+        egui::IconData {
+            rgba: img.into_raw(),
+            width,
+            height,
+        }
+    }
     // Optional: pass a folder on the command line, e.g. `cargo run --release -- C:\Photos`
     let initial = std::env::args().nth(1).map(PathBuf::from);
 
     eframe::run_native(
         "Media Viewer",
-        eframe::NativeOptions::default(),
+        eframe::NativeOptions {
+            viewport: egui::ViewportBuilder::default().with_icon(load_icon()),
+            ..Default::default()
+        },
         Box::new(|_cc| Ok(Box::new(App::new(initial)))),
     )
 }
