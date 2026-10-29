@@ -1,6 +1,7 @@
 #![windows_subsystem = "windows"]
 use eframe::egui;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
+use std::ffi::OsString;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -19,6 +20,14 @@ enum Kind {
     Video,
 }
 
+/// Which files the viewer shows.
+#[derive(Clone, Copy, PartialEq)]
+enum Filter {
+    All,
+    Favorites,
+    NotFavorites,
+}
+
 #[derive(Clone)]
 struct Media {
     path: PathBuf,
@@ -27,7 +36,13 @@ struct Media {
 
 struct App {
     folder: Option<PathBuf>,
+    /// Every photo/video in the folder.
+    all: Vec<Media>,
+    /// The subset currently shown (depends on `filter`). `index` points into this list.
     items: Vec<Media>,
+    /// File names present in the Favorites subfolder, kept in memory so we never hit the disk per frame.
+    favs: HashSet<OsString>,
+    filter: Filter,
     index: usize,
     status: String,
     /// Path of the image currently held in `texture` (set even if loading failed).
@@ -47,7 +62,10 @@ impl App {
     fn new(initial: Option<PathBuf>) -> Self {
         let mut app = App {
             folder: None,
+            all: Vec::new(),
             items: Vec::new(),
+            favs: HashSet::new(),
+            filter: Filter::All,
             index: 0,
             status: "Open a folder to begin.".into(),
             loaded_path: None,
@@ -91,12 +109,45 @@ impl App {
             }
             Err(e) => self.status = format!("Could not read folder: {e}"),
         }
-        self.items = items;
-        self.index = 0;
+        self.all = items;
+        self.favs = load_favs(&folder);
         self.folder = Some(folder);
         self.rotations.clear();
         self.loaded_path = None;
         self.texture = None;
+        self.index = 0;
+        self.apply_filter(None);
+    }
+
+    /// Rebuilds the visible list from `all` according to `filter`.
+    /// Tries to stay on `keep` if it is still visible; otherwise stays near the same position.
+    fn apply_filter(&mut self, keep: Option<PathBuf>) {
+        let filter = self.filter;
+        let favs = &self.favs;
+        let visible: Vec<Media> = self
+            .all
+            .iter()
+            .filter(|m| {
+                let is_fav = m
+                    .path
+                    .file_name()
+                    .map(|n| favs.contains(n))
+                    .unwrap_or(false);
+                match filter {
+                    Filter::All => true,
+                    Filter::Favorites => is_fav,
+                    Filter::NotFavorites => !is_fav,
+                }
+            })
+            .cloned()
+            .collect();
+
+        let fallback = self.index.min(visible.len().saturating_sub(1));
+        let new_index = keep
+            .and_then(|p| visible.iter().position(|m| m.path == p))
+            .unwrap_or(fallback);
+        self.items = visible;
+        self.index = new_index;
     }
 
     /// Decode the image ourselves (no URI loaders involved), apply the view-only rotation,
@@ -135,7 +186,11 @@ impl App {
     }
 
     fn is_favorite(&self, media: &Media) -> bool {
-        self.fav_path(media).map(|p| p.exists()).unwrap_or(false)
+        media
+            .path
+            .file_name()
+            .map(|n| self.favs.contains(n))
+            .unwrap_or(false)
     }
 
     /// Favoriting copies the file into <folder>/Favorites; unfavoriting removes that copy.
@@ -148,7 +203,8 @@ impl App {
             return;
         };
 
-        let result = if dest.exists() {
+        let was_fav = dest.exists();
+        let result = if was_fav {
             fs::remove_file(&dest).map(|_| "Removed from favorites.".to_string())
         } else {
             dest.parent()
@@ -158,10 +214,21 @@ impl App {
                 .map(|_| "Added to favorites.".to_string())
         };
 
-        self.status = match result {
-            Ok(msg) => msg,
-            Err(e) => format!("Favorite failed: {e}"),
-        };
+        match result {
+            Ok(msg) => {
+                if let Some(name) = media.path.file_name() {
+                    if was_fav {
+                        self.favs.remove(name);
+                    } else {
+                        self.favs.insert(name.to_os_string());
+                    }
+                }
+                self.status = msg;
+                // In a filtered view the item may now need to disappear from the list.
+                self.apply_filter(Some(media.path.clone()));
+            }
+            Err(e) => self.status = format!("Favorite failed: {e}"),
+        }
     }
 
     /// Sends the current file to the recycle bin / trash (recoverable) and removes it from the list.
@@ -173,6 +240,7 @@ impl App {
         match trash::delete(&media.path) {
             Ok(()) => {
                 self.rotations.remove(&media.path);
+                self.all.retain(|m| m.path != media.path);
                 self.items.remove(self.index);
                 if self.index >= self.items.len() {
                     self.index = self.items.len().saturating_sub(1);
@@ -209,6 +277,19 @@ impl App {
         let n = self.items.len() as isize;
         self.index = (self.index as isize + delta).rem_euclid(n) as usize;
     }
+}
+
+/// Reads the names of the files already in <folder>/Favorites (empty if the folder doesn't exist).
+fn load_favs(folder: &Path) -> HashSet<OsString> {
+    let mut set = HashSet::new();
+    if let Ok(entries) = fs::read_dir(folder.join(FAV_DIR)) {
+        for entry in entries.flatten() {
+            if entry.path().is_file() {
+                set.insert(entry.file_name());
+            }
+        }
+    }
+    set
 }
 
 /// Light red used for a favorited heart.
@@ -307,6 +388,8 @@ impl eframe::App for App {
             .as_ref()
             .map(|m| self.is_favorite(m))
             .unwrap_or(false);
+        // Snapshot used at the end of the frame to detect changes made from the toolbar.
+        let shown = (self.items.len(), self.index, self.favs.len());
 
         if let Some(m) = &current {
             if m.kind == Kind::Image {
@@ -317,11 +400,19 @@ impl eframe::App for App {
         }
 
         egui::Panel::top("toolbar").show(ui, |ui| {
-            ui.horizontal(|ui| {
+            ui.horizontal_wrapped(|ui| {
                 if ui.button("📂 Open folder").clicked() {
                     if let Some(dir) = rfd::FileDialog::new().pick_folder() {
                         self.load_folder(dir);
                     }
+                }
+                ui.separator();
+                let before = self.filter;
+                ui.selectable_value(&mut self.filter, Filter::All, "All");
+                ui.selectable_value(&mut self.filter, Filter::Favorites, "Favorites");
+                ui.selectable_value(&mut self.filter, Filter::NotFavorites, "Not favorites");
+                if self.filter != before {
+                    self.apply_filter(current.as_ref().map(|m| m.path.clone()));
                 }
                 ui.separator();
                 if ui.button("◀").clicked() {
@@ -405,7 +496,12 @@ impl eframe::App for App {
 
         egui::CentralPanel::default().show(ui, |ui| match &current {
             None => {
-                ui.centered_and_justified(|ui| ui.label("No photos or videos to show."));
+                let msg = if self.all.is_empty() {
+                    "No photos or videos to show."
+                } else {
+                    "Nothing matches this filter."
+                };
+                ui.centered_and_justified(|ui| ui.label(msg));
             }
             Some(m) if m.kind == Kind::Image => {
                 if let Some(tex) = &self.texture {
@@ -429,6 +525,11 @@ impl eframe::App for App {
                 });
             }
         });
+
+        // If a toolbar action changed what is shown, draw one more frame right away.
+        if shown != (self.items.len(), self.index, self.favs.len()) {
+            ui.ctx().request_repaint();
+        }
     }
 }
 
