@@ -37,6 +37,10 @@ struct App {
     texture: Option<egui::TextureHandle>,
     /// View-only rotation per file, in quarter turns clockwise. Never written to disk.
     rotations: HashMap<PathBuf, u8>,
+    /// Text in the "go to number" box.
+    goto_text: String,
+    /// True while the "go to number" box has keyboard focus (so shortcuts don't fire while typing).
+    goto_focused: bool,
 }
 
 impl App {
@@ -50,6 +54,8 @@ impl App {
             loaded_rot: 0,
             texture: None,
             rotations: HashMap::new(),
+            goto_text: String::new(),
+            goto_focused: false,
         };
         if let Some(p) = initial {
             app.load_folder(p);
@@ -267,6 +273,16 @@ impl eframe::App for App {
                 i.key_pressed(egui::Key::L),
             )
         });
+        // Don't treat keys as shortcuts while the user is typing in the number box.
+        let typing = self.goto_focused;
+        let (left, right, fav, del, rot_r, rot_l) = (
+            left && !typing,
+            right && !typing,
+            fav && !typing,
+            del && !typing,
+            rot_r && !typing,
+            rot_l && !typing,
+        );
         if left {
             self.step(-1);
         }
@@ -315,7 +331,28 @@ impl eframe::App for App {
                     self.step(1);
                 }
                 if !self.items.is_empty() {
-                    ui.label(format!("{} / {}", self.index + 1, self.items.len()));
+                    // Keep the box in sync with the current position unless the user is typing.
+                    if !self.goto_focused {
+                        self.goto_text = (self.index + 1).to_string();
+                    }
+                    let resp = ui
+                        .add(egui::TextEdit::singleline(&mut self.goto_text).desired_width(44.0))
+                        .on_hover_text("Type a number and press Enter to jump");
+                    self.goto_focused = resp.has_focus();
+                    if resp.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
+                        match self.goto_text.trim().parse::<usize>() {
+                            Ok(n) if n >= 1 && n <= self.items.len() => {
+                                self.index = n - 1;
+                                self.status = format!("Jumped to {n}.");
+                            }
+                            _ => {
+                                self.status =
+                                    format!("Enter a number from 1 to {}.", self.items.len());
+                            }
+                        }
+                        ui.ctx().request_repaint();
+                    }
+                    ui.label(format!("/ {}", self.items.len()));
                 }
                 ui.separator();
                 ui.add_enabled_ui(current.is_some(), |ui| {
