@@ -1,9 +1,13 @@
 #![windows_subsystem = "windows"]
 use eframe::egui;
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::ffi::OsString;
 use std::fs;
+use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::path::{Path, PathBuf};
+use std::sync::mpsc::{self, Receiver};
+use std::sync::{Arc, Condvar, Mutex};
+use std::thread;
 
 /// Name of the subfolder created inside the browsed folder.
 const FAV_DIR: &str = "Favorites";
@@ -11,8 +15,120 @@ const FAV_DIR: &str = "Favorites";
 /// Images larger than this (in either dimension) are downscaled before upload to the GPU.
 const MAX_TEXTURE_SIDE: u32 = 4096;
 
+/// How many images after / before the current one are decoded in the background.
+/// Each preloaded image costs roughly width * height * 4 bytes of memory (e.g. ~48 MB for 12 MP),
+/// so lower these if memory matters more than speed.
+const PRELOAD_AHEAD: usize = 2;
+const PRELOAD_BEHIND: usize = 1;
+
+/// Number of background decoder threads.
+const WORKERS: usize = 2;
+
 const IMAGE_EXTS: &[&str] = &["jpg", "jpeg", "png", "gif", "webp", "bmp"];
 const VIDEO_EXTS: &[&str] = &["mp4", "mov", "mkv", "avi", "webm", "m4v"];
+
+/// Identifies one decoded image: the file plus its view-only rotation (quarter turns).
+type Key = (PathBuf, u8);
+
+/// Decodes an image, downscales it if huge, and applies the view-only rotation.
+/// Runs on a background thread; the file on disk is never modified.
+fn decode_image(path: &Path, quarter_turns: u8) -> Result<egui::ColorImage, String> {
+    let mut img = image::open(path).map_err(|e| e.to_string())?;
+    if img.width() > MAX_TEXTURE_SIDE || img.height() > MAX_TEXTURE_SIDE {
+        img = img.thumbnail(MAX_TEXTURE_SIDE, MAX_TEXTURE_SIDE);
+    }
+    img = match quarter_turns % 4 {
+        1 => img.rotate90(),
+        2 => img.rotate180(),
+        3 => img.rotate270(),
+        _ => img,
+    };
+    let rgba = img.to_rgba8();
+    let size = [rgba.width() as usize, rgba.height() as usize];
+    Ok(egui::ColorImage::from_rgba_unmultiplied(
+        size,
+        rgba.as_raw(),
+    ))
+}
+
+struct Shared {
+    /// Images waiting to be decoded, most important first.
+    queue: Mutex<VecDeque<Key>>,
+    /// Images a worker is decoding right now.
+    inflight: Mutex<HashSet<Key>>,
+    wake: Condvar,
+}
+
+struct Loaded {
+    key: Key,
+    result: Result<egui::ColorImage, String>,
+}
+
+/// A small pool of background threads that decode images so the UI never waits on the disk or decoder.
+struct Loader {
+    shared: Arc<Shared>,
+    rx: Receiver<Loaded>,
+}
+
+impl Loader {
+    fn new(ctx: egui::Context, workers: usize) -> Self {
+        let shared = Arc::new(Shared {
+            queue: Mutex::new(VecDeque::new()),
+            inflight: Mutex::new(HashSet::new()),
+            wake: Condvar::new(),
+        });
+        let (tx, rx) = mpsc::channel::<Loaded>();
+
+        for _ in 0..workers {
+            let shared = Arc::clone(&shared);
+            let tx = tx.clone();
+            let ctx = ctx.clone();
+            thread::spawn(move || {
+                loop {
+                    // Wait for a job; mark it in flight while still holding the queue lock.
+                    let key = {
+                        let mut queue = shared.queue.lock().unwrap();
+                        loop {
+                            if let Some(k) = queue.pop_front() {
+                                shared.inflight.lock().unwrap().insert(k.clone());
+                                break k;
+                            }
+                            queue = shared.wake.wait(queue).unwrap();
+                        }
+                    };
+
+                    let result = catch_unwind(AssertUnwindSafe(|| decode_image(&key.0, key.1)))
+                        .unwrap_or_else(|_| Err("decoder crashed on this file".to_string()));
+
+                    let _ = tx.send(Loaded {
+                        key: key.clone(),
+                        result,
+                    });
+                    shared.inflight.lock().unwrap().remove(&key);
+                    ctx.request_repaint(); // wake the UI so it picks up the result
+                }
+            });
+        }
+
+        Loader { shared, rx }
+    }
+
+    /// Replaces the waiting jobs with `wanted` (in priority order), skipping anything
+    /// already finished (`skip`) or currently being decoded.
+    fn set_wanted(&self, wanted: &[Key], skip: impl Fn(&Key) -> bool) {
+        {
+            let mut queue = self.shared.queue.lock().unwrap();
+            let inflight = self.shared.inflight.lock().unwrap();
+            queue.clear();
+            for k in wanted {
+                if !skip(k) && !inflight.contains(k) {
+                    queue.push_back(k.clone());
+                }
+            }
+        }
+        self.shared.wake.notify_all();
+    }
+}
 
 #[derive(Clone, Copy, PartialEq)]
 enum Kind {
@@ -45,11 +161,16 @@ struct App {
     filter: Filter,
     index: usize,
     status: String,
-    /// Path of the image currently held in `texture` (set even if loading failed).
-    loaded_path: Option<PathBuf>,
-    /// Quarter turns (0-3, clockwise) that `texture` was built with.
-    loaded_rot: u8,
-    texture: Option<egui::TextureHandle>,
+    /// Background decoder threads.
+    loader: Loader,
+    /// Ready-to-draw textures for the current image and its neighbors.
+    cache: HashMap<Key, egui::TextureHandle>,
+    /// Images that could not be decoded (so we don't retry every frame).
+    failed: HashSet<Key>,
+    /// The set of images we last asked the loader for, in priority order.
+    last_wanted: Vec<Key>,
+    /// The last texture that was on screen; kept visible while the next one loads.
+    shown: Option<egui::TextureHandle>,
     /// View-only rotation per file, in quarter turns clockwise. Never written to disk.
     rotations: HashMap<PathBuf, u8>,
     /// Text in the "go to number" box.
@@ -59,7 +180,7 @@ struct App {
 }
 
 impl App {
-    fn new(initial: Option<PathBuf>) -> Self {
+    fn new(initial: Option<PathBuf>, ctx: egui::Context) -> Self {
         let mut app = App {
             folder: None,
             all: Vec::new(),
@@ -68,9 +189,11 @@ impl App {
             filter: Filter::All,
             index: 0,
             status: "Open a folder to begin.".into(),
-            loaded_path: None,
-            loaded_rot: 0,
-            texture: None,
+            loader: Loader::new(ctx, WORKERS),
+            cache: HashMap::new(),
+            failed: HashSet::new(),
+            last_wanted: Vec::new(),
+            shown: None,
             rotations: HashMap::new(),
             goto_text: String::new(),
             goto_focused: false,
@@ -113,8 +236,10 @@ impl App {
         self.favs = load_favs(&folder);
         self.folder = Some(folder);
         self.rotations.clear();
-        self.loaded_path = None;
-        self.texture = None;
+        self.cache.clear();
+        self.failed.clear();
+        self.last_wanted.clear();
+        self.shown = None;
         self.index = 0;
         self.apply_filter(None);
     }
@@ -150,34 +275,75 @@ impl App {
         self.index = new_index;
     }
 
-    /// Decode the image ourselves (no URI loaders involved), apply the view-only rotation,
-    /// and upload it as a texture. The file on disk is never modified.
-    fn ensure_texture(&mut self, ctx: &egui::Context, path: &Path, quarter_turns: u8) {
-        if self.loaded_path.as_deref() == Some(path) && self.loaded_rot == quarter_turns {
+    /// Collects finished decodes from the background threads and uploads them as textures.
+    /// At most one upload per frame, so several large images arriving together can't cause a hitch.
+    fn pump_loader(&mut self, ctx: &egui::Context, current_key: Option<&Key>) {
+        while let Ok(loaded) = self.loader.rx.try_recv() {
+            if !self.last_wanted.contains(&loaded.key) {
+                continue; // we've moved on; drop it
+            }
+            match loaded.result {
+                Ok(color) => {
+                    let name = loaded.key.0.to_string_lossy().to_string();
+                    let tex = ctx.load_texture(name, color, Default::default());
+                    self.cache.insert(loaded.key, tex);
+                    ctx.request_repaint(); // handle any remaining results next frame
+                    break;
+                }
+                Err(e) => {
+                    if Some(&loaded.key) == current_key {
+                        self.status = format!("Could not load image: {e}");
+                    }
+                    self.failed.insert(loaded.key);
+                }
+            }
+        }
+    }
+
+    /// Works out which images should be in memory (current + a few neighbors), frees the rest,
+    /// and tells the loader what to decode next. Does nothing if the set hasn't changed.
+    fn update_wanted(&mut self) {
+        let n = self.items.len() as isize;
+        let mut offsets: Vec<isize> = vec![0];
+        for k in 1..=PRELOAD_AHEAD.max(PRELOAD_BEHIND) {
+            if k <= PRELOAD_AHEAD {
+                offsets.push(k as isize);
+            }
+            if k <= PRELOAD_BEHIND {
+                offsets.push(-(k as isize));
+            }
+        }
+
+        let mut wanted: Vec<Key> = Vec::new();
+        if n > 0 {
+            for off in offsets {
+                let i = (self.index as isize + off).rem_euclid(n) as usize;
+                let m = &self.items[i];
+                if m.kind != Kind::Image {
+                    continue;
+                }
+                let key = (
+                    m.path.clone(),
+                    self.rotations.get(&m.path).copied().unwrap_or(0),
+                );
+                if !wanted.contains(&key) {
+                    wanted.push(key);
+                }
+            }
+        }
+
+        if wanted == self.last_wanted {
             return;
         }
-        self.loaded_path = Some(path.to_path_buf());
-        self.loaded_rot = quarter_turns;
-        self.texture = None;
 
-        match image::open(path) {
-            Ok(mut img) => {
-                if img.width() > MAX_TEXTURE_SIDE || img.height() > MAX_TEXTURE_SIDE {
-                    img = img.thumbnail(MAX_TEXTURE_SIDE, MAX_TEXTURE_SIDE);
-                }
-                img = match quarter_turns % 4 {
-                    1 => img.rotate90(),
-                    2 => img.rotate180(),
-                    3 => img.rotate270(),
-                    _ => img,
-                };
-                let rgba = img.to_rgba8();
-                let size = [rgba.width() as usize, rgba.height() as usize];
-                let color = egui::ColorImage::from_rgba_unmultiplied(size, rgba.as_raw());
-                self.texture = Some(ctx.load_texture("current_image", color, Default::default()));
-            }
-            Err(e) => self.status = format!("Could not load image: {e}"),
-        }
+        // Free anything outside the window, then queue what's missing.
+        self.cache.retain(|k, _| wanted.contains(k));
+        self.failed.retain(|k| wanted.contains(k));
+        let cache = &self.cache;
+        let failed = &self.failed;
+        self.loader
+            .set_wanted(&wanted, |k| cache.contains_key(k) || failed.contains(k));
+        self.last_wanted = wanted;
     }
 
     fn fav_path(&self, media: &Media) -> Option<PathBuf> {
@@ -245,8 +411,7 @@ impl App {
                 if self.index >= self.items.len() {
                     self.index = self.items.len().saturating_sub(1);
                 }
-                self.loaded_path = None;
-                self.texture = None;
+                self.shown = None;
                 self.status = "Moved to recycle bin.".into();
             }
             Err(e) => self.status = format!("Delete failed: {e}"),
@@ -391,13 +556,32 @@ impl eframe::App for App {
         // Snapshot used at the end of the frame to detect changes made from the toolbar.
         let shown = (self.items.len(), self.index, self.favs.len());
 
-        if let Some(m) = &current {
-            if m.kind == Kind::Image {
-                let ctx = ui.ctx().clone();
-                let rot = self.rotations.get(&m.path).copied().unwrap_or(0);
-                self.ensure_texture(&ctx, &m.path, rot);
-            }
+        // Background loading: pick up finished images, then (re)plan what to keep and preload.
+        let current_key: Option<Key> =
+            current.as_ref().filter(|m| m.kind == Kind::Image).map(|m| {
+                (
+                    m.path.clone(),
+                    self.rotations.get(&m.path).copied().unwrap_or(0),
+                )
+            });
+        let ctx = ui.ctx().clone();
+        self.pump_loader(&ctx, current_key.as_ref());
+        self.update_wanted();
+
+        let cur_tex = current_key
+            .as_ref()
+            .and_then(|k| self.cache.get(k).cloned());
+        let cur_failed = current_key
+            .as_ref()
+            .map(|k| self.failed.contains(k))
+            .unwrap_or(false);
+        match (&cur_tex, &current) {
+            (Some(t), _) => self.shown = Some(t.clone()),
+            (None, None) => self.shown = None,
+            (None, Some(m)) if m.kind == Kind::Video => self.shown = None,
+            _ => {} // keep showing the previous image while this one loads
         }
+        let loading = current_key.is_some() && cur_tex.is_none() && !cur_failed;
 
         egui::Panel::top("toolbar").show(ui, |ui| {
             ui.horizontal_wrapped(|ui| {
@@ -491,7 +675,8 @@ impl eframe::App for App {
                 .and_then(|m| m.path.file_name())
                 .and_then(|n| n.to_str())
                 .unwrap_or("");
-            ui.label(format!("{name}    {}", self.status));
+            let loading_note = if loading { "    Loading…" } else { "" };
+            ui.label(format!("{name}    {}{loading_note}", self.status));
         });
 
         egui::CentralPanel::default().show(ui, |ui| match &current {
@@ -504,13 +689,21 @@ impl eframe::App for App {
                 ui.centered_and_justified(|ui| ui.label(msg));
             }
             Some(m) if m.kind == Kind::Image => {
-                if let Some(tex) = &self.texture {
+                // The current image if ready; otherwise the previous one (unless this one failed).
+                let tex = cur_tex.as_ref().or(if cur_failed {
+                    None
+                } else {
+                    self.shown.as_ref()
+                });
+                if let Some(tex) = tex {
                     ui.centered_and_justified(|ui| {
                         let sized = egui::load::SizedTexture::from_handle(tex);
                         ui.add(egui::Image::new(sized).shrink_to_fit());
                     });
-                } else {
+                } else if cur_failed {
                     ui.centered_and_justified(|ui| ui.label("Could not load this image."));
+                } else {
+                    ui.centered_and_justified(|ui| ui.label("Loading…"));
                 }
             }
             Some(m) => {
@@ -554,6 +747,6 @@ fn main() -> eframe::Result {
             viewport: egui::ViewportBuilder::default().with_icon(load_icon()),
             ..Default::default()
         },
-        Box::new(|_cc| Ok(Box::new(App::new(initial)))),
+        Box::new(|cc| Ok(Box::new(App::new(initial, cc.egui_ctx.clone())))),
     )
 }
