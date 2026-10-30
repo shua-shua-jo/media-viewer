@@ -24,6 +24,14 @@ const PRELOAD_BEHIND: usize = 1;
 /// Number of background decoder threads.
 const WORKERS: usize = 2;
 
+/// Zoom is relative to "fit to window" (1.0 = whole image visible).
+const MIN_ZOOM: f32 = 0.2;
+const MAX_ZOOM: f32 = 8.0;
+/// Multiplier used by the zoom buttons and the +/- keys.
+const ZOOM_STEP: f32 = 1.25;
+/// How strongly the mouse wheel zooms (higher = faster).
+const SCROLL_ZOOM_SPEED: f32 = 0.002;
+
 const IMAGE_EXTS: &[&str] = &["jpg", "jpeg", "png", "gif", "webp", "bmp"];
 const VIDEO_EXTS: &[&str] = &["mp4", "mov", "mkv", "avi", "webm", "m4v"];
 
@@ -171,6 +179,13 @@ struct App {
     last_wanted: Vec<Key>,
     /// The last texture that was on screen; kept visible while the next one loads.
     shown: Option<egui::TextureHandle>,
+    /// Current zoom (1.0 = fit to window) and pan offset in screen points. View-only state.
+    zoom: f32,
+    /// Zoom value at the end of the previous frame, used to keep the view centered when the slider moves.
+    prev_zoom: f32,
+    pan: egui::Vec2,
+    /// The file the zoom/pan state belongs to; zoom resets when this changes.
+    zoom_path: Option<PathBuf>,
     /// View-only rotation per file, in quarter turns clockwise. Never written to disk.
     rotations: HashMap<PathBuf, u8>,
     /// Text in the "go to number" box.
@@ -194,6 +209,10 @@ impl App {
             failed: HashSet::new(),
             last_wanted: Vec::new(),
             shown: None,
+            zoom: 1.0,
+            prev_zoom: 1.0,
+            pan: egui::Vec2::ZERO,
+            zoom_path: None,
             rotations: HashMap::new(),
             goto_text: String::new(),
             goto_focused: false,
@@ -435,6 +454,16 @@ impl App {
         self.status = "Rotated view (file not changed).".into();
     }
 
+    fn reset_zoom(&mut self) {
+        self.zoom = 1.0;
+        self.prev_zoom = 1.0;
+        self.pan = egui::Vec2::ZERO;
+    }
+
+    fn zoom_by(&mut self, factor: f32) {
+        self.zoom = (self.zoom * factor).clamp(MIN_ZOOM, MAX_ZOOM);
+    }
+
     fn step(&mut self, delta: isize) {
         if self.items.is_empty() {
             return;
@@ -455,6 +484,77 @@ fn load_favs(folder: &Path) -> HashSet<OsString> {
         }
     }
     set
+}
+
+/// Draws the image filling the available area with zoom (mouse wheel / pinch), drag-to-pan and
+/// double-click-to-reset. Zooming only changes how the already-uploaded texture is drawn on the GPU,
+/// so it costs essentially nothing.
+fn draw_zoomable(
+    ui: &mut egui::Ui,
+    tex: &egui::TextureHandle,
+    zoom: &mut f32,
+    prev_zoom: &mut f32,
+    pan: &mut egui::Vec2,
+) {
+    let (rect, resp) = ui.allocate_exact_size(ui.available_size(), egui::Sense::click_and_drag());
+    let tex_size = tex.size_vec2();
+    // Scale that makes the whole image fit (never enlarges small images past 100% when "fit").
+    let fit = (rect.width() / tex_size.x)
+        .min(rect.height() / tex_size.y)
+        .min(1.0);
+
+    // The toolbar slider/buttons changed the zoom: keep the middle of the view where it was.
+    if (*zoom - *prev_zoom).abs() > f32::EPSILON && *prev_zoom > 0.0 {
+        *pan *= *zoom / *prev_zoom;
+    }
+
+    // Mouse wheel / trackpad pinch: zoom towards the cursor.
+    if resp.hovered() {
+        let (scroll, pinch, pointer) = ui.input(|i| {
+            (
+                i.smooth_scroll_delta.y,
+                i.zoom_delta(),
+                i.pointer.hover_pos(),
+            )
+        });
+        let factor = pinch * (scroll * SCROLL_ZOOM_SPEED).exp();
+        if (factor - 1.0).abs() > 1e-4 {
+            let new_zoom = (*zoom * factor).clamp(MIN_ZOOM, MAX_ZOOM);
+            let ratio = new_zoom / *zoom;
+            if let Some(p) = pointer {
+                let center = rect.center() + *pan;
+                let new_center = p - (p - center) * ratio;
+                *pan = new_center - rect.center();
+            }
+            *zoom = new_zoom;
+        }
+    }
+
+    if resp.dragged() {
+        *pan += resp.drag_delta();
+    }
+    if resp.double_clicked() {
+        *zoom = 1.0;
+        *pan = egui::Vec2::ZERO;
+    }
+
+    // Keep the image from being dragged away; when it's smaller than the view it stays centered.
+    let size = tex_size * fit * *zoom;
+    let max_pan = ((size - rect.size()) * 0.5).max(egui::Vec2::ZERO);
+    pan.x = pan.x.clamp(-max_pan.x, max_pan.x);
+    pan.y = pan.y.clamp(-max_pan.y, max_pan.y);
+    *prev_zoom = *zoom;
+
+    if resp.dragged() {
+        ui.ctx().set_cursor_icon(egui::CursorIcon::Grabbing);
+    } else if resp.hovered() && (max_pan.x > 0.0 || max_pan.y > 0.0) {
+        ui.ctx().set_cursor_icon(egui::CursorIcon::Grab);
+    }
+
+    let image_rect = egui::Rect::from_center_size(rect.center() + *pan, size);
+    let full_uv = egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0));
+    ui.painter_at(rect)
+        .image(tex.id(), image_rect, full_uv, egui::Color32::WHITE);
 }
 
 /// Light red used for a favorited heart.
@@ -548,7 +648,33 @@ impl eframe::App for App {
             self.delete_current();
         }
 
+        // Zoom shortcuts: + / - / 0
+        let (zin, zout, zfit) = ui.ctx().input(|i| {
+            (
+                i.key_pressed(egui::Key::Plus) || i.key_pressed(egui::Key::Equals),
+                i.key_pressed(egui::Key::Minus),
+                i.key_pressed(egui::Key::Num0),
+            )
+        });
+        if !typing {
+            if zin {
+                self.zoom_by(ZOOM_STEP);
+            }
+            if zout {
+                self.zoom_by(1.0 / ZOOM_STEP);
+            }
+            if zfit {
+                self.reset_zoom();
+            }
+        }
+
         let current = self.items.get(self.index).cloned();
+        // Each new photo/video starts at "fit to window".
+        let cur_path = current.as_ref().map(|m| m.path.clone());
+        if cur_path != self.zoom_path {
+            self.reset_zoom();
+            self.zoom_path = cur_path;
+        }
         let is_fav = current
             .as_ref()
             .map(|m| self.is_favorite(m))
@@ -660,6 +786,29 @@ impl eframe::App for App {
                     self.rotate_current(true);
                 }
                 ui.separator();
+                ui.add_enabled_ui(is_image, |ui| {
+                    if ui.button("-").on_hover_text("Zoom out (-)").clicked() {
+                        self.zoom_by(1.0 / ZOOM_STEP);
+                    }
+                    ui.add(
+                        egui::Slider::new(&mut self.zoom, MIN_ZOOM..=MAX_ZOOM)
+                            .logarithmic(true)
+                            .show_value(false),
+                    );
+                    if ui.button("+").on_hover_text("Zoom in (+)").clicked() {
+                        self.zoom_by(ZOOM_STEP);
+                    }
+                    ui.label(format!("{:.0}%", self.zoom * 100.0))
+                        .on_hover_text("Relative to fit-to-window");
+                    if ui
+                        .button("Fit (0)")
+                        .on_hover_text("Reset zoom (or double-click the image)")
+                        .clicked()
+                    {
+                        self.reset_zoom();
+                    }
+                });
+                ui.separator();
                 if ui
                     .add_enabled(current.is_some(), egui::Button::new("🗑 Delete (Del)"))
                     .clicked()
@@ -696,10 +845,7 @@ impl eframe::App for App {
                     self.shown.as_ref()
                 });
                 if let Some(tex) = tex {
-                    ui.centered_and_justified(|ui| {
-                        let sized = egui::load::SizedTexture::from_handle(tex);
-                        ui.add(egui::Image::new(sized).shrink_to_fit());
-                    });
+                    draw_zoomable(ui, tex, &mut self.zoom, &mut self.prev_zoom, &mut self.pan);
                 } else if cur_failed {
                     ui.centered_and_justified(|ui| ui.label("Could not load this image."));
                 } else {
