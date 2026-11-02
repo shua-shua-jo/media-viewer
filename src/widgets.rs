@@ -120,3 +120,38 @@ pub fn heart_button(ui: &mut egui::Ui, filled: bool) -> egui::Response {
     }
     response
 }
+
+#[derive(Clone, Copy)]
+pub enum Arrow {
+    Left,
+    Right,
+}
+
+/// A normal button with a solid triangle drawn on it. The triangle is painted with shapes instead of
+/// a text character, so it never turns into a colored emoji and looks the same on every system.
+pub fn arrow_button(ui: &mut egui::Ui, arrow: Arrow, tooltip: &str) -> egui::Response {
+    let response = ui.add(egui::Button::new("").min_size(egui::vec2(28.0, 0.0)));
+
+    let c = response.rect.center();
+    let s = 5.0; // triangle size
+    let points = match arrow {
+        Arrow::Left => vec![
+            egui::pos2(c.x + s * 0.6, c.y - s),
+            egui::pos2(c.x + s * 0.6, c.y + s),
+            egui::pos2(c.x - s, c.y),
+        ],
+        Arrow::Right => vec![
+            egui::pos2(c.x - s * 0.6, c.y - s),
+            egui::pos2(c.x - s * 0.6, c.y + s),
+            egui::pos2(c.x + s, c.y),
+        ],
+    };
+    let color = ui.style().interact(&response).fg_stroke.color;
+    ui.painter().add(egui::Shape::convex_polygon(
+        points,
+        color,
+        egui::Stroke::NONE,
+    ));
+
+    response.on_hover_text(tooltip)
+}

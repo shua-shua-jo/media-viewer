@@ -4,7 +4,7 @@ use eframe::egui;
 
 use super::App;
 use crate::media::{Filter, Kind, Media};
-use crate::widgets::heart_button;
+use crate::widgets::{Arrow, arrow_button, heart_button};
 
 impl App {
     pub(super) fn show_toolbar(
@@ -29,10 +29,10 @@ impl App {
                     self.apply_filter(current.as_ref().map(|m| m.path.clone()));
                 }
                 ui.separator();
-                if ui.button("◀").clicked() {
+                if arrow_button(ui, Arrow::Left, "Previous (←)").clicked() {
                     self.step(-1);
                 }
-                if ui.button("▶").clicked() {
+                if arrow_button(ui, Arrow::Right, "Next (→)").clicked() {
                     self.step(1);
                 }
                 if !self.items.is_empty() {
@@ -78,13 +78,15 @@ impl App {
                     .map(|m| m.kind == Kind::Image)
                     .unwrap_or(false);
                 if ui
-                    .add_enabled(is_image, egui::Button::new("Rotate left (L)"))
+                    .add_enabled(is_image, egui::Button::new("↺"))
+                    .on_hover_text("Rotate left (L)")
                     .clicked()
                 {
                     self.rotate_current(false);
                 }
                 if ui
-                    .add_enabled(is_image, egui::Button::new("Rotate right (R)"))
+                    .add_enabled(is_image, egui::Button::new("↻"))
+                    .on_hover_text("Rotate right (R)")
                     .clicked()
                 {
                     self.rotate_current(true);
