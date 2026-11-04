@@ -123,10 +123,10 @@ impl App {
                 ui.vertical_centered(|ui| {
                     ui.add_space(ui.available_height() / 3.0);
                     ui.heading("🎬 Video");
-                    if ui.button("▶ Play in default player").clicked() {
-                        if let Err(e) = open::that(&m.path) {
-                            self.status = format!("Could not open video: {e}");
-                        }
+                    if ui.button("▶ Play in default player").clicked()
+                        && let Err(e) = open::that(&m.path)
+                    {
+                        self.status = format!("Could not open video: {e}");
                     }
                 });
             }

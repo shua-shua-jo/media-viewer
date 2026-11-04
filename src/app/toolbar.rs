@@ -15,10 +15,10 @@ impl App {
     ) {
         egui::Panel::top("toolbar").show(ui, |ui| {
             ui.horizontal_wrapped(|ui| {
-                if ui.button("📂 Open folder").clicked() {
-                    if let Some(dir) = rfd::FileDialog::new().pick_folder() {
-                        self.load_folder(dir);
-                    }
+                if ui.button("📂 Open folder").clicked()
+                    && let Some(dir) = rfd::FileDialog::new().pick_folder()
+                {
+                    self.load_folder(dir);
                 }
                 ui.separator();
                 let before = self.filter;
