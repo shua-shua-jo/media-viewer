@@ -93,7 +93,7 @@ It's a single file that runs on its own. You can copy it anywhere, pin it to the
 
 ### Optional: `.exe` file icon on Windows
 
-The window icon comes from `assets/icon.png`. To also change the icon of the `.exe` file itself (shown in File Explorer and the taskbar), add an `assets/icon.ico`, add `winresource = "0.1"` under `[build-dependencies]` in `Cargo.toml`, and create a `build.rs` next to `Cargo.toml`:
+The window icon comes from `assets/icon.png`. To also change the icon of the `.exe` file itself (shown in File Explorer and the taskbar), add an `assets/favicon.ico`, add `winresource = "0.1"` under `[build-dependencies]` in `Cargo.toml`, and create a `build.rs` next to `Cargo.toml`:
 
 ```rust
 fn main() {
