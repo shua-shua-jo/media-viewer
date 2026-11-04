@@ -11,7 +11,7 @@ permissions:
 
 env:
   CARGO_TERM_COLOR: always
-  APP_NAME: media_viewer # must match `name` in Cargo.toml
+  APP_NAME: media-viewer # must match `name` in Cargo.toml
 
 jobs:
   verify:
