@@ -35,6 +35,18 @@ Open a folder, flip through your media, and mark favorites with a heart. Favorit
 - Images are decoded on background threads, and the next few photos are preloaded, so moving between photos feels instant.
 - Only a small window of images is kept in memory at a time.
 
+## Install
+
+1. Download the file for your system from the [Releases](../../releases) page.
+2. (Optional) Verify it: compare its SHA-256 with `SHA256SUMS.txt`, or run
+    `gh attestation verify <file> --repo <owner>/<repo>`.
+3. Unzip it and run `media_viewer`.
+
+**First-run warnings.** The downloads aren't code-signed yet.
+- **Windows:** SmartScreen may say "Windows protected your PC". Click *More info*, then *Run anyway*.
+- **macOS:** if the app is blocked, run `xattr -d com.apple.quarantine ./media_viewer` once, then open it.
+- **Linux:** needs GTK 3 (installed on most desktops). Make the file executable with `chmod +x media_viewer`.
+
 ## Keyboard shortcuts
 
 | Key | Action |
