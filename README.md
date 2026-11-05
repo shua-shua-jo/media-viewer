@@ -93,7 +93,7 @@ It's a single file that runs on its own. You can copy it anywhere, pin it to the
 
 ### Optional: `.exe` file icon on Windows
 
-The window icon comes from `assets/icon.png`. To also change the icon of the `.exe` file itself (shown in File Explorer and the taskbar), add an `assets/favicon.ico`, add `winresource = "0.1"` under `[build-dependencies]` in `Cargo.toml`, and create a `build.rs` next to `Cargo.toml`:
+The window icon comes from `assets/icon.png`. To also change the icon of the `.exe` file itself (shown in File Explorer and the taskbar), add an `assets/icon.ico`, add `winresource = "0.1"` under `[build-dependencies]` in `Cargo.toml`, and create a `build.rs` next to `Cargo.toml`:
 
 ```rust
 fn main() {
@@ -157,3 +157,9 @@ Each preloaded photo uses roughly width × height × 4 bytes of memory (about 48
 ## Dependencies
 
 [eframe / egui](https://github.com/emilk/egui) (GUI), [image](https://crates.io/crates/image) (decoding), [rfd](https://crates.io/crates/rfd) (folder picker), [trash](https://crates.io/crates/trash) (Recycle Bin), [open](https://crates.io/crates/open) (launch videos). See `Cargo.toml` for versions.
+
+## License
+
+Released under the [MIT License](LICENSE).
+
+Third-party libraries used by this project are distributed under their own licenses; see `Cargo.toml` for the list of dependencies.
