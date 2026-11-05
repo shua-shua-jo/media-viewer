@@ -1,0 +1,54 @@
+# Configuration for cargo-deny (https://embarkstudios.github.io/cargo-deny/).
+# Run locally with:  cargo deny check
+# Run in CI by .github/workflows/security.yml
+
+[advisories]
+version = 2
+# Known-vulnerable crates fail the check. Advisories you have read and decided to accept
+# are listed here, each with a reason. Review this list whenever you update dependencies:
+# cargo-deny warns when an entry is no longer needed, and then it should be deleted.
+ignore = [
+    # The three zbus-family notices below all come in through eframe -> egui-winit -> accesskit_winit
+    # -> accesskit_unix (Linux accessibility over D-Bus). They are "unmaintained" notices with no known
+    # vulnerability: the crates were merged into zbus 6. Waiting for accesskit/eframe to move to zbus 6.
+    { id = "RUSTSEC-2026-0370", reason = "zvariant merged into zbus 6; transitive via eframe (Linux accessibility), no known vulnerability" },
+    { id = "RUSTSEC-2026-0371", reason = "zbus_names merged into zbus 6; transitive via eframe (Linux accessibility), no known vulnerability" },
+    { id = "RUSTSEC-2026-0372", reason = "zvariant_derive merged into zbus 6; transitive via eframe (Linux accessibility), no known vulnerability" },
+
+    # ttf-parser is unmaintained (no known vulnerability). It comes in via eframe -> winit ->
+    # sctk-adwaita -> ab_glyph, i.e. winit's Linux (Wayland) window-decoration code, not anything
+    # that opens user files. Waiting for upstream to move to a maintained font parser (e.g. skrifa).
+    { id = "RUSTSEC-2026-0192", reason = "ttf-parser unmaintained; transitive via eframe/winit Linux window decorations, no known vulnerability" },
+]
+
+[licenses]
+version = 2
+# Only these licenses are accepted. If CI reports a license that is not listed, read it,
+# decide whether you are happy to ship it, and add it here.
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Zlib",
+    "Unicode-3.0",
+    "BSL-1.0",
+    "0BSD",
+    "Unlicense",
+    "CDLA-Permissive-2.0",
+    "OFL-1.1",
+    "Ubuntu-font-1.0",
+]
+confidence-threshold = 0.8
+
+[bans]
+# Several versions of the same crate are common in GUI dependency trees; just warn.
+multiple-versions = "warn"
+wildcards = "deny"
+
+[sources]
+# Only allow crates from crates.io (no random git repositories).
+unknown-registry = "deny"
+unknown-git = "deny"

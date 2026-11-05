@@ -1,17 +1,16 @@
 name: Release
 
-# Runs when you push a version tag such as v1.0.0 (or v1.1.0-beta.1 for a pre-release).
 on:
   push:
     tags: ['v*']
 
-# Needed to create the GitHub Release and upload files to it.
 permissions:
   contents: write
+  id-token: write
+  attestations: write
 
 env:
   CARGO_TERM_COLOR: always
-  APP_NAME: media-viewer # must match `name` in Cargo.toml
 
 jobs:
   verify:
@@ -83,9 +82,14 @@ jobs:
       - name: Package
         shell: bash
         run: |
+          # Read the program name from Cargo.toml so it can never get out of sync.
+          APP_NAME=$(grep -m1 '^name' Cargo.toml | sed -E 's/name *= *"([^"]+)"/\1/')
+          BIN="target/${{ matrix.target }}/release/${APP_NAME}${{ matrix.ext }}"
+          echo "Looking for: $BIN"
+          ls -la "target/${{ matrix.target }}/release/" || true
           NAME="${APP_NAME}-${GITHUB_REF_NAME}-${{ matrix.label }}"
           mkdir "$NAME"
-          cp "target/${{ matrix.target }}/release/${APP_NAME}${{ matrix.ext }}" "$NAME/"
+          cp "$BIN" "$NAME/"
           cp README.md "$NAME/"
           if [ -f LICENSE ]; then cp LICENSE "$NAME/"; fi
           if [ "${{ matrix.archive }}" = "zip" ]; then
@@ -94,6 +98,11 @@ jobs:
             tar czf "$NAME.tar.gz" "$NAME"
           fi
           echo "ASSET=$NAME.${{ matrix.archive }}" >> "$GITHUB_ENV"
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: ${{ env.ASSET }}
 
       - uses: actions/upload-artifact@v4
         with:
