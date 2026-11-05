@@ -13,6 +13,8 @@
 mod actions;
 mod preload;
 mod shortcuts;
+#[cfg(test)]
+mod tests;
 mod toolbar;
 mod view;
 

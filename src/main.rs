@@ -1,10 +1,12 @@
-#![windows_subsystem = "windows"]
+#![cfg_attr(all(not(debug_assertions), not(test)), windows_subsystem = "windows")]
 #![forbid(unsafe_code)]
 
 mod app;
 mod config;
 mod loader;
 mod media;
+#[cfg(test)]
+mod tests;
 mod widgets;
 
 use std::path::PathBuf;
