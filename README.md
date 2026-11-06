@@ -39,7 +39,7 @@ Open a folder, flip through your media, and mark favorites with a heart. Favorit
 
 1. Download the file for your system from the [Releases](../../releases) page.
 2. (Optional) Verify it: compare its SHA-256 with `SHA256SUMS.txt`, or run
-    `gh attestation verify <file> --repo <owner>/<repo>`.
+    `gh attestation verify <file> --repo shua-shua-jo/media-viewer`.
 3. Unzip it and run `media_viewer`.
 
 **First-run warnings.** The downloads aren't code-signed yet.

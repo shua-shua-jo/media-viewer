@@ -6,7 +6,7 @@ on:
 
 permissions:
   contents: write
-  id-token: write
+  id-token: write # lets GitHub sign build attestations
   attestations: write
 
 env:
@@ -115,6 +115,23 @@ jobs:
     needs: build
     runs-on: ubuntu-22.04
     steps:
+      - uses: actions/checkout@v4
+
+      # Use this version's section of CHANGELOG.md as the release notes.
+      # Pre-release tags (e.g. v1.0.0-rc.1) have no section, so they get a short fallback text.
+      - name: Extract release notes
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          awk -v ver="$VERSION" '
+            $0 ~ ("^## \\[" ver "\\]") { found = 1; next }
+            found && /^## \[/ { exit }
+            found { print }
+          ' CHANGELOG.md > release-notes.md
+          if [ ! -s release-notes.md ]; then
+            echo "Release $GITHUB_REF_NAME. See [CHANGELOG.md](CHANGELOG.md) for details." > release-notes.md
+          fi
+          cat release-notes.md
+
       - uses: actions/download-artifact@v4
         with:
           path: dist
@@ -129,6 +146,7 @@ jobs:
       - uses: softprops/action-gh-release@v2
         with:
           files: dist/*
+          body_path: release-notes.md
           generate_release_notes: true
           # Tags with a dash (v1.2.0-beta.1) are marked as pre-releases.
           prerelease: ${{ contains(github.ref_name, '-') }}
