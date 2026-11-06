@@ -1854,7 +1854,7 @@ checksum = "5d15f86d12da44cd8d4ec3c73984537eb7f4cadcb9776a575a0a8a05ca11005c"
 
 [[package]]
 name = "media-viewer"
-version = "1.0.0-rc.1"
+version = "1.0.0"
 dependencies = [
  "eframe",
  "image",
