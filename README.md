@@ -1,5 +1,7 @@
 # Media Viewer
 
+<img style="display: block; margin: auto;" src="docs/appshot_v1.0.0.png" alt="Media Viewer" width="600">
+
 A fast, lightweight desktop app for browsing the photos and videos in a folder. Built in Rust with [egui](https://github.com/emilk/egui) / eframe.
 
 Open a folder, flip through your media, and mark favorites with a heart. Favorites are automatically copied into a `Favorites` subfolder, so your best shots are always collected in one place.
