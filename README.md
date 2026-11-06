@@ -42,10 +42,12 @@ Open a folder, flip through your media, and mark favorites with a heart. Favorit
     `gh attestation verify <file> --repo shua-shua-jo/media-viewer`.
 3. Unzip it and run `media_viewer`.
 
-**First-run warnings.** The downloads aren't code-signed yet.
+**First-run warnings.** These downloads are not code-signed yet, so your system may warn you the first time you run the app.
 - **Windows:** SmartScreen may say "Windows protected your PC". Click *More info*, then *Run anyway*.
 - **macOS:** if the app is blocked, run `xattr -d com.apple.quarantine ./media_viewer` once, then open it.
-- **Linux:** needs GTK 3 (installed on most desktops). Make the file executable with `chmod +x media_viewer`.
+- **Linux:** requires GTK 3, which most desktops include. If the file won't start, run `chmod +x media_viewer`.
+
+You can check any download against `SHA256SUMS.txt`, or with `gh attestation verify`, to confirm it came from this repository's build.
 
 ## Keyboard shortcuts
 
