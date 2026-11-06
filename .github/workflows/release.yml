@@ -17,7 +17,7 @@ jobs:
     name: Check tag matches Cargo.toml
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Compare versions
         run: |
           VERSION=$(grep -m1 '^version' Cargo.toml | sed -E 's/version *= *"([^"]+)"/\1/')
@@ -59,7 +59,7 @@ jobs:
             ext: ''
             archive: tar.gz
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -115,7 +115,7 @@ jobs:
     needs: build
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # Use this version's section of CHANGELOG.md as the release notes.
       # Pre-release tags (e.g. v1.0.0-rc.1) have no section, so they get a short fallback text.
