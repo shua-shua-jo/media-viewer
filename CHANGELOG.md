@@ -6,6 +6,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Added
+- Optional embedded video playback (build with `--features video`): play, pause, seek. No audio yet.
+
 ## [1.0.0] - 2026-11-06
 
 First stable release.

@@ -35,3 +35,12 @@ pub const HEART_RED: egui::Color32 = egui::Color32::from_rgb(255, 120, 140);
 /// anyway, but anything narrower makes the controls hard to use.
 pub const MIN_WINDOW_WIDTH: f32 = 600.0;
 pub const MIN_WINDOW_HEIGHT: f32 = 400.0;
+/// Videos wider than this are scaled down while decoding (saves CPU and memory).
+#[allow(dead_code)]
+pub const VIDEO_MAX_WIDTH: u32 = 1920;
+/// Start playing as soon as a video is opened.
+#[allow(dead_code)]
+pub const VIDEO_AUTOPLAY: bool = true;
+/// How many decoded frames may wait in memory (each about 8 MB at 1080p).
+#[allow(dead_code)]
+pub const VIDEO_QUEUE_LEN: usize = 3;

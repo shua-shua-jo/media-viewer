@@ -169,6 +169,9 @@ Each preloaded photo uses roughly width × height × 4 bytes of memory (about 48
 - Photos are decoded at up to `MAX_TEXTURE_SIDE` pixels, so very deep zoom on large photos can look soft.
 - Favorites added or removed outside the app aren't noticed until you reopen the folder.
 - Only files directly inside the opened folder are shown; subfolders are not scanned.
+- Embedded video playback is an optional build feature (picture only, no audio yet). Downloads from
+  Releases open videos in your default player. To build with playback, install FFmpeg 8.x development
+  files, set `FFMPEG_DIR` and `LIBCLANG_PATH`, then run `cargo run --release --features video`.
 
 ## Dependencies
 

@@ -7,6 +7,7 @@ mod loader;
 mod media;
 #[cfg(test)]
 mod tests;
+mod video;
 mod widgets;
 
 use std::path::PathBuf;

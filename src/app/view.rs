@@ -15,6 +15,16 @@ impl eframe::App for App {
 
         let current = self.items.get(self.index).cloned();
 
+        // Stop the embedded player when we're no longer on a video.
+        if !current
+            .as_ref()
+            .map(|m| m.kind == Kind::Video)
+            .unwrap_or(false)
+        {
+            self.player = None;
+            self.player_failed = None;
+        }
+
         // Each new photo/video starts at "fit to window".
         let cur_path = current.as_ref().map(|m| m.path.clone());
         if cur_path != self.zoom_path {
@@ -120,15 +130,7 @@ impl App {
                 }
             }
             Some(m) => {
-                ui.vertical_centered(|ui| {
-                    ui.add_space(ui.available_height() / 3.0);
-                    ui.heading("🎬 Video");
-                    if ui.button("▶ Play in default player").clicked()
-                        && let Err(e) = open::that(&m.path)
-                    {
-                        self.status = format!("Could not open video: {e}");
-                    }
-                });
+                self.show_video(ui, m);
             }
         });
     }

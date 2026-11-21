@@ -16,6 +16,7 @@ mod shortcuts;
 #[cfg(test)]
 mod tests;
 mod toolbar;
+mod video_view;
 mod view;
 
 use std::collections::{HashMap, HashSet};
@@ -27,6 +28,7 @@ use eframe::egui;
 use crate::config::WORKERS;
 use crate::loader::{Key, Loader};
 use crate::media::{self, Filter, Media};
+use crate::video::Player;
 
 pub struct App {
     folder: Option<PathBuf>,
@@ -62,6 +64,10 @@ pub struct App {
     goto_text: String,
     /// True while the "go to number" box has keyboard focus (so shortcuts don't fire while typing).
     goto_focused: bool,
+    /// Embedded player for the current video, if any.
+    player: Option<Player>,
+    /// A video the player failed to start for, so we don't retry every frame.
+    player_failed: Option<PathBuf>,
 }
 
 impl App {
@@ -86,6 +92,8 @@ impl App {
             rotations: HashMap::new(),
             goto_text: String::new(),
             goto_focused: false,
+            player: None,
+            player_failed: None,
         };
         if let Some(p) = initial {
             app.load_folder(p);
