@@ -5,10 +5,11 @@ updates:
     directory: '/'
     schedule:
       interval: weekly
+    ignore:
+      - dependency-name: 'ffmpeg-next'
+      - dependency-name: 'ffmpeg-sys-next'
+
   - package-ecosystem: github-actions
     directory: '/'
     schedule:
       interval: weekly
-ignore:
-  - dependency-name: 'ffmpeg-next'
-  - dependency-name: 'ffmpeg-sys-next'
