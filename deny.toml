@@ -40,6 +40,7 @@ allow = [
     "CDLA-Permissive-2.0",
     "OFL-1.1",
     "Ubuntu-font-1.0",
+    "WTFPL",
 ]
 confidence-threshold = 0.8
 
@@ -52,3 +53,6 @@ wildcards = "deny"
 # Only allow crates from crates.io (no random git repositories).
 unknown-registry = "deny"
 unknown-git = "deny"
+
+[graph]
+all-features = true
