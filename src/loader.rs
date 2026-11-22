@@ -8,6 +8,8 @@ use std::sync::{Arc, Condvar, Mutex};
 use std::thread;
 
 use eframe::egui;
+use image::metadata::Orientation;
+use image::{DynamicImage, ImageDecoder, ImageReader};
 
 use crate::config::MAX_TEXTURE_SIDE;
 
@@ -17,7 +19,17 @@ pub type Key = (PathBuf, u8);
 /// Decodes an image, downscales it if huge, and applies the view-only rotation.
 /// Runs on a background thread; the file on disk is never modified.
 fn decode_image(path: &Path, quarter_turns: u8) -> Result<egui::ColorImage, String> {
-    let mut img = image::open(path).map_err(|e| e.to_string())?;
+    // Decode, then apply the camera's EXIF orientation so portrait photos stand upright.
+    // (The image crate reads the orientation tag for JPEG and WebP; other formats are left as they are.)
+    let mut decoder = ImageReader::open(path)
+        .map_err(|e| e.to_string())?
+        .with_guessed_format()
+        .map_err(|e| e.to_string())?
+        .into_decoder()
+        .map_err(|e| e.to_string())?;
+    let orientation = decoder.orientation().unwrap_or(Orientation::NoTransforms);
+    let mut img = DynamicImage::from_decoder(decoder).map_err(|e| e.to_string())?;
+    img.apply_orientation(orientation);
     if img.width() > MAX_TEXTURE_SIDE || img.height() > MAX_TEXTURE_SIDE {
         img = img.thumbnail(MAX_TEXTURE_SIDE, MAX_TEXTURE_SIDE);
     }
