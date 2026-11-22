@@ -19,7 +19,7 @@ Open a folder, flip through your media, and mark favorites with a heart. Favorit
 **Browsing**
 - Opens any folder and shows the photos and videos directly inside it, sorted by file name.
 - Photos: JPG, JPEG, PNG, GIF, WebP, BMP.
-- Videos: MP4, MOV, MKV, AVI, WebM, M4V. Videos open in your system's default player.
+- Videos: MP4, MOV, MKV, AVI, WebM, M4V. Videos open in your default player. Builds made with the optional `video` feature play videos inside the app (see below).
 - Previous / next buttons, arrow keys, and a number box to jump straight to any item.
 
 **Favorites**
@@ -45,6 +45,11 @@ Open a folder, flip through your media, and mark favorites with a heart. Favorit
 - Images are decoded on background threads, and the next few photos are preloaded, so moving between photos feels instant.
 - Only a small window of images is kept in memory at a time.
 
+**Opening files**
+- Open a folder, or a single photo or video: its folder opens with that file selected.
+- From the command line, the **Open file** button, or by dragging a file or folder onto the window.
+- Photos taken in portrait mode display upright (JPEG and WebP orientation data is applied).
+
 ## Install
 
 1. Download the file for your system from the [Releases](../../releases) page.
@@ -69,6 +74,7 @@ You can check any download against `SHA256SUMS.txt`, or with `gh attestation ver
 | `Delete` | Move to Recycle Bin / Trash |
 | `+` / `-` | Zoom in / out |
 | `0` | Reset zoom to fit |
+| `Space` | Play / pause (embedded video builds only) |
 
 Shortcuts are paused while you're typing in the number box.
 
@@ -84,6 +90,9 @@ Shortcuts are paused while you're typing in the number box.
 
 ## Run
 
+media-viewer photo.jpg           # opens the photo's folder, starting at photo.jpg
+media-viewer "D:\Photos"         # opens a folder
+
 From the project folder:
 
 ```bash
@@ -95,6 +104,8 @@ You can also pass a folder to open right away:
 ```bash
 cargo run --release -- "C:\Users\You\Pictures"
 ```
+
+To open files from Windows Explorer, right-click a photo, choose Open with, then Choose another app, and pick media-viewer.exe.
 
 The first build takes a few minutes while dependencies compile. Later builds are much faster.
 
@@ -148,7 +159,13 @@ media_viewer/
         ├── actions.rs    favorite, delete, rotate, zoom
         ├── shortcuts.rs  keyboard shortcuts
         ├── toolbar.rs    top toolbar
-        └── view.rs       per-frame UI, status bar, image area
+        ├── view.rs       per-frame UI, status bar, image area
+        ├── video_view.rs 
+        └── open.rs       opening a file or folder, drag and drop
+    ├── video/            optional embedded video player (FFmpeg)
+        ├── mod.rs        app state, opening folders, filtering
+        ├── player.rs    texture cache and preloading
+        ├── stub.rs    favorite, delete, rotate, zoom
 ```
 
 To add a feature, create a new file in `src/app/`, declare it in `app/mod.rs`, and give it its own `impl App { ... }` block.
@@ -167,12 +184,15 @@ Settings live in `src/config.rs`. Change a value and rebuild.
 | `SCROLL_ZOOM_SPEED` | `0.002` | Mouse wheel zoom speed |
 | `HEART_RED` | light red | Color of a favorited heart |
 | `MIN_WINDOW_WIDTH` / `MIN_WINDOW_HEIGHT` | `600` / `400` | Smallest window size |
+| `VIDEO_MAX_WIDTH` | `1920` | Videos wider than this are scaled down while decoding |
+| `VIDEO_AUTOPLAY` | `true` | Start playing as soon as a video opens |
+| `VIDEO_QUEUE_LEN` | `3` | Decoded frames kept waiting in memory |
 
 Each preloaded photo uses roughly width × height × 4 bytes of memory (about 48 MB for a 12-megapixel photo). Lower the preload numbers if memory matters more than speed.
 
 ## Known limitations
 
-- Videos aren't played inside the app; they open in your default player.
+- Videos open in your default player. Builds made with the optional `video` feature play videos inside the app (see below).
 - Animated GIFs show only their first frame.
 - Photos are decoded at up to `MAX_TEXTURE_SIDE` pixels, so very deep zoom on large photos can look soft.
 - Favorites added or removed outside the app aren't noticed until you reopen the folder.
@@ -181,9 +201,26 @@ Each preloaded photo uses roughly width × height × 4 bytes of memory (about 48
   Releases open videos in your default player. To build with playback, install FFmpeg 8.x development
   files, set `FFMPEG_DIR` and `LIBCLANG_PATH`, then run `cargo run --release --features video`.
 
+## Optional: embedded video playback
+
+The downloads on the Releases page open videos in your default player. You can build a version that plays
+them inside the app. This is picture only for now (no audio), and it needs FFmpeg to build.
+
+1. Install [LLVM](https://llvm.org/) (Windows: `winget install LLVM.LLVM`) and set `LIBCLANG_PATH` to its `bin` folder.
+2. Get an FFmpeg **shared** build that includes the development files (headers and `.lib` files), matching the
+   `ffmpeg-next` version in `Cargo.toml` (<version>). Set `FFMPEG_DIR` to the folder containing `include`, `lib` and `bin`.
+3. Put FFmpeg's `bin` folder on your `PATH` so the program can find its DLLs when it runs.
+4. Build and run:
+   ```bash
+   cargo run --release --features video
+   ```
+
+Known limitations of embedded playback: no audio, videos recorded in portrait on a phone may appear sideways,
+and videos wider than 1920 pixels are scaled down while decoding.
+
 ## Dependencies
 
-[eframe / egui](https://github.com/emilk/egui) (GUI), [image](https://crates.io/crates/image) (decoding), [rfd](https://crates.io/crates/rfd) (folder picker), [trash](https://crates.io/crates/trash) (Recycle Bin), [open](https://crates.io/crates/open) (launch videos). See `Cargo.toml` for versions.
+[eframe / egui](https://github.com/emilk/egui) (GUI), [image](https://crates.io/crates/image) (decoding), [rfd](https://crates.io/crates/rfd) (folder picker), [trash](https://crates.io/crates/trash) (Recycle Bin), [open](https://crates.io/crates/open) (launch videos), [ffmpeg-next](https://crates.io/crates/ffmpeg-next) (optional, video playback). See `Cargo.toml` for versions.
 
 ## License
 

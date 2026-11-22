@@ -6,8 +6,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-11-23
+
 ### Added
-- Optional embedded video playback (build with `--features video`): play, pause, seek. No audio yet.
+- Open a single file: from the command line (`media-viewer photo.jpg`), with the new **Open file** button, or by dragging a file or folder onto the window. The file's folder opens with that file selected.
+- Optional embedded video playback (build with `--features video`): play, pause, replay, and a seek bar. Picture only for now (no audio). The downloads on the Releases page are built without it and still open videos in your default player.
+- Space bar pauses and resumes embedded video.
 
 ## [1.0.1] - 2026-11-22
 
@@ -38,3 +42,5 @@ First stable release.
 
 [Unreleased]: https://github.com/shua-shua-jo/media-viewer/compare/v1.0.0...HEAD
 [1.0.0]: https://github.com/shua-shua-jo/media-viewer/releases/tag/v1.0.0
+[1.0.1]: https://github.com/shua-shua-jo/media-viewer/releases/tag/v1.0.1
+[1.1.0]: https://github.com/shua-shua-jo/media-viewer/releases/tag/v1.1.0
