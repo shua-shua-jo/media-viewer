@@ -9,6 +9,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 ### Added
 - Optional embedded video playback (build with `--features video`): play, pause, seek. No audio yet.
 
+## [1.0.1] - 2026-11-22
+
+### Fixed
+- Photos taken in portrait mode (and other camera orientations) are now displayed upright.
+
+### Security
+- Updated `url` to 2.5.9 (RUSTSEC-2026-0592).
+
 ## [1.0.0] - 2026-11-06
 
 First stable release.
