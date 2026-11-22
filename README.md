@@ -1,6 +1,8 @@
 # Media Viewer
 
-<img style="display: block; margin: auto;" src="assets/repo-template.png" alt="Repository Template" width="400">
+<p align="center">
+    <img src="assets/repo-template.png" alt="Repository Template" width="300">
+</p>
 
 A fast, lightweight desktop app for browsing the photos and videos in a folder. Built in Rust with [egui](https://github.com/emilk/egui) / eframe.
 
@@ -8,7 +10,9 @@ Open a folder, flip through your media, and mark favorites with a heart. Favorit
 
 ## Screenshots
 
-<img style="display: block; margin: auto;" src="docs/appshot_v1.0.0.png" alt="Media Viewer" width="600">
+<p align="center">
+    <img src="docs/appshot_v1.0.0.png" alt="Media Viewer" width="600">
+</p>
 
 ## Features
 
