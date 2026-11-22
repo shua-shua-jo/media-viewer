@@ -12,6 +12,7 @@ impl eframe::App for App {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         let ctx = ui.ctx().clone();
         self.handle_shortcuts(&ctx);
+        self.handle_dropped_files(&ctx);
 
         let current = self.items.get(self.index).cloned();
 

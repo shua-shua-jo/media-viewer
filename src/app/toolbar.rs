@@ -3,6 +3,7 @@
 use eframe::egui;
 
 use super::App;
+use crate::config::{IMAGE_EXTS, VIDEO_EXTS};
 use crate::media::{Filter, Kind, Media};
 use crate::widgets::{Arrow, arrow_button, heart_button};
 
@@ -19,6 +20,19 @@ impl App {
                     && let Some(dir) = rfd::FileDialog::new().pick_folder()
                 {
                     self.load_folder(dir);
+                }
+                if ui.button("Open file").clicked() {
+                    let exts: Vec<&str> = IMAGE_EXTS
+                        .iter()
+                        .chain(VIDEO_EXTS.iter())
+                        .copied()
+                        .collect();
+                    if let Some(file) = rfd::FileDialog::new()
+                        .add_filter("Photos and videos", &exts)
+                        .pick_file()
+                    {
+                        self.open_path(file);
+                    }
                 }
                 ui.separator();
                 let before = self.filter;

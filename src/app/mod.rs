@@ -11,6 +11,7 @@
 //! and give it its own `impl App { ... }` block.
 
 mod actions;
+mod open;
 mod preload;
 mod shortcuts;
 #[cfg(test)]
@@ -96,7 +97,7 @@ impl App {
             player_failed: None,
         };
         if let Some(p) = initial {
-            app.load_folder(p);
+            app.open_path(p);
         }
         app
     }
