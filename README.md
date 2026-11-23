@@ -153,16 +153,16 @@ media_viewer/
     ├── media.rs          media types, folder scanning, favorites reading
     ├── loader.rs         background image decoding
     ├── widgets.rs        zoomable image area, heart and arrow buttons
-    └── app/
-        ├── mod.rs        app state, opening folders, filtering
-        ├── preload.rs    texture cache and preloading
-        ├── actions.rs    favorite, delete, rotate, zoom
-        ├── shortcuts.rs  keyboard shortcuts
-        ├── toolbar.rs    top toolbar
-        ├── view.rs       per-frame UI, status bar, image area
-        ├── video_view.rs 
-        └── open.rs       opening a file or folder, drag and drop
-    ├── video/            optional embedded video player (FFmpeg)
+    ├── app/
+    │   ├── mod.rs        app state, opening folders, filtering
+    │   ├── preload.rs    texture cache and preloading
+    │   ├── actions.rs    favorite, delete, rotate, zoom
+    │   ├── shortcuts.rs  keyboard shortcuts
+    │   ├── toolbar.rs    top toolbar
+    │   ├── view.rs       per-frame UI, status bar, image area
+    │   ├── video_view.rs 
+    │   └── open.rs       opening a file or folder, drag and drop
+    └── video/            optional embedded video player (FFmpeg)
         ├── mod.rs        app state, opening folders, filtering
         ├── player.rs    texture cache and preloading
         ├── stub.rs    favorite, delete, rotate, zoom
