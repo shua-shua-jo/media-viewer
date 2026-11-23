@@ -1,26 +1,55 @@
-# Media Viewer
+<h1 align="center">
+  <img src="docs/banner.png" alt="Media Viewer" width="700">
+</h1>
 
 <p align="center">
-    <img src="assets/repo-template.png" alt="Repository Template" width="300">
+  <a href="https://github.com/shua-shua-jo/media-viewer/actions/workflows/ci.yml"><img src="https://github.com/shua-shua-jo/media-viewer/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/shua-shua-jo/media-viewer/releases/latest"><img src="https://img.shields.io/github/v/release/shua-shua-jo/media-viewer" alt="Latest release"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/shua-shua-jo/media-viewer" alt="License: MIT"></a>
 </p>
 
 A fast, lightweight desktop app for browsing the photos and videos in a folder. Built in Rust with [egui](https://github.com/emilk/egui) / eframe.
 
-Open a folder, flip through your media, and mark favorites with a heart. Favorites are automatically copied into a `Favorites` subfolder, so your best shots are always collected in one place.
-
-## Screenshots
+Open a folder (or a single file), flip through your media, and mark favorites with a heart. Favorites are automatically copied into a `Favorites` subfolder, so your best shots are always collected in one place.
 
 <p align="center">
-    <img src="docs/appshot_v1.0.0.png" alt="Media Viewer" width="600">
+  <img src="docs/screenshots/main-view.png" alt="Media Viewer showing a photo with the toolbar on top and the status bar at the bottom" width="800">
 </p>
+
+## Contents
+
+- [Contents](#contents)
+- [Features](#features)
+- [Screenshots](#screenshots)
+- [Install](#install)
+  - [Verify your download](#verify-your-download)
+- [Usage](#usage)
+- [Keyboard shortcuts](#keyboard-shortcuts)
+- [Build from source](#build-from-source)
+  - [Requirements](#requirements)
+  - [Run](#run)
+  - [Build a standalone app](#build-a-standalone-app)
+  - [Optional: `.exe` file icon on Windows](#optional-exe-file-icon-on-windows)
+- [Optional: embedded video playback](#optional-embedded-video-playback)
+- [Project structure](#project-structure)
+- [Configuration](#configuration)
+- [Known limitations](#known-limitations)
+- [Security and changelog](#security-and-changelog)
+- [Dependencies](#dependencies)
+- [License](#license)
 
 ## Features
 
 **Browsing**
 - Opens any folder and shows the photos and videos directly inside it, sorted by file name.
 - Photos: JPG, JPEG, PNG, GIF, WebP, BMP.
-- Videos: MP4, MOV, MKV, AVI, WebM, M4V. Videos open in your default player. Builds made with the optional `video` feature play videos inside the app (see below).
+- Videos: MP4, MOV, MKV, AVI, WebM, M4V. Videos open in your default player; builds made with the optional `video` feature play them inside the app ([details below](#optional-embedded-video-playback)).
 - Previous / next buttons, arrow keys, and a number box to jump straight to any item.
+
+**Opening files**
+- Open a folder, or a single photo or video: its folder opens with that file selected.
+- From the command line, the **Open file** button, or by dragging a file or folder onto the window.
+- Photos taken in portrait mode display upright (JPEG and WebP orientation data is applied).
 
 **Favorites**
 - Click the heart (or press `F`) to favorite. Hollow heart = not favorited, filled light red = favorited.
@@ -45,24 +74,79 @@ Open a folder, flip through your media, and mark favorites with a heart. Favorit
 - Images are decoded on background threads, and the next few photos are preloaded, so moving between photos feels instant.
 - Only a small window of images is kept in memory at a time.
 
-**Opening files**
-- Open a folder, or a single photo or video: its folder opens with that file selected.
-- From the command line, the **Open file** button, or by dragging a file or folder onto the window.
-- Photos taken in portrait mode display upright (JPEG and WebP orientation data is applied).
+## Screenshots
+
+<table>
+  <tr>
+    <td align="center">
+      <img src="docs/screenshots/favorites.png" alt="A favorited photo with the filled heart and the Favorites filter selected" width="400"><br>
+      <em>Favorite photos with the heart, then filter by them</em>
+    </td>
+    <td align="center">
+      <img src="docs/screenshots/zoom.png" alt="A photo zoomed in, with the zoom slider and percentage in the bottom bar" width="400"><br>
+      <em>Zoom with the wheel or slider, drag to pan</em>
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <img src="docs/screenshots/open-file.png" alt="Dragging a photo onto the window to open it" width="400"><br>
+      <em>Open a file, or drag it onto the window</em>
+    </td>
+    <td align="center">
+      <img src="docs/screenshots/video.png" alt="A video playing inside the app with play and pause and a seek bar" width="400"><br>
+      <em>Embedded video playback (optional build)</em>
+    </td>
+  </tr>
+</table>
 
 ## Install
 
-1. Download the file for your system from the [Releases](../../releases) page.
-2. (Optional) Verify it: compare its SHA-256 with `SHA256SUMS.txt`, or run
-    `gh attestation verify <file> --repo shua-shua-jo/media-viewer`.
-3. Unzip it and run `media_viewer`.
+1. Download the file for your system from the [Releases](../../releases) page:
+
+   | System | File |
+   |---|---|
+   | Windows | `media-viewer-<version>-windows-x86_64.zip` |
+   | Linux | `media-viewer-<version>-linux-x86_64.tar.gz` |
+   | macOS (Apple Silicon) | `media-viewer-<version>-macos-arm64.tar.gz` |
+   | macOS (Intel) | `media-viewer-<version>-macos-x86_64.tar.gz` |
+
+2. Unzip it and run `media-viewer` (`media-viewer.exe` on Windows).
+3. *(Optional)* [Verify the download](#verify-your-download).
 
 **First-run warnings.** These downloads are not code-signed yet, so your system may warn you the first time you run the app.
-- **Windows:** SmartScreen may say "Windows protected your PC". Click *More info*, then *Run anyway*.
-- **macOS:** if the app is blocked, run `xattr -d com.apple.quarantine ./media_viewer` once, then open it.
-- **Linux:** requires GTK 3, which most desktops include. If the file won't start, run `chmod +x media_viewer`.
+- **Windows:** SmartScreen may say "Windows protected your PC". Click **More info**, then **Run anyway**.
+- **macOS:** if the app is blocked, run `xattr -d com.apple.quarantine ./media-viewer` once, then open it.
+- **Linux:** requires GTK 3, which most desktops include. If the file won't start, run `chmod +x media-viewer`.
 
-You can check any download against `SHA256SUMS.txt`, or with `gh attestation verify`, to confirm it came from this repository's build.
+### Verify your download
+
+Each release includes `SHA256SUMS.txt`. Compare your file's checksum with the matching line:
+
+```powershell
+# Windows (PowerShell)
+Get-FileHash .\media-viewer-<version>-windows-x86_64.zip -Algorithm SHA256
+```
+```bash
+# Linux / macOS
+sha256sum -c SHA256SUMS.txt --ignore-missing
+```
+
+Release files also carry a build attestation proving they were built by this repository's workflow. With the [GitHub CLI](https://cli.github.com/):
+
+```bash
+gh attestation verify <downloaded-file> --repo shua-shua-jo/media-viewer
+```
+
+## Usage
+
+Start the app and click **Open folder** or **Open file**, drag a file or folder onto the window, or pass a path on the command line:
+
+```text
+media-viewer photo.jpg           # opens the photo's folder, starting at photo.jpg
+media-viewer "D:\Photos"         # opens a folder
+```
+
+**Open with from Windows Explorer.** Right-click a photo, choose **Open with**, then **Choose another app**, and pick `media-viewer.exe`. Tick **Always use this app** to make it the default for that file type.
 
 ## Keyboard shortcuts
 
@@ -78,20 +162,20 @@ You can check any download against `SHA256SUMS.txt`, or with `gh attestation ver
 
 Shortcuts are paused while you're typing in the number box.
 
-## Requirements
+## Build from source
+
+### Requirements
 
 - [Rust](https://www.rust-lang.org/tools/install) (install with `rustup`).
 - An `assets/icon.png` file (square, 256×256 or larger). It's embedded into the program as the window icon, so the build fails without it.
 - **Linux only:** a few system libraries. On Ubuntu/Debian:
   ```bash
-  sudo apt install libgtk-3-dev libxkbcommon-dev libssl-dev
+  sudo apt install libclang-dev libgtk-3-dev libxcb-render0-dev libxcb-shape0-dev \
+    libxcb-xfixes0-dev libxkbcommon-dev libssl-dev
   ```
   Windows and macOS need nothing extra.
 
-## Run
-
-media-viewer photo.jpg           # opens the photo's folder, starting at photo.jpg
-media-viewer "D:\Photos"         # opens a folder
+### Run
 
 From the project folder:
 
@@ -99,19 +183,17 @@ From the project folder:
 cargo run --release
 ```
 
-You can also pass a folder to open right away:
+To open a folder or file right away:
 
 ```bash
 cargo run --release -- "C:\Users\You\Pictures"
 ```
 
-To open files from Windows Explorer, right-click a photo, choose Open with, then Choose another app, and pick media-viewer.exe.
-
 The first build takes a few minutes while dependencies compile. Later builds are much faster.
 
 > Use `--release` for normal use. Debug builds are noticeably slower at decoding large photos.
 
-## Build a standalone app
+### Build a standalone app
 
 ```bash
 cargo build --release
@@ -121,14 +203,14 @@ The program is created at:
 
 | OS | Path |
 |---|---|
-| Windows | `target\release\media_viewer.exe` |
-| macOS / Linux | `target/release/media_viewer` |
+| Windows | `target\release\media-viewer.exe` |
+| macOS / Linux | `target/release/media-viewer` |
 
-It's a single file that runs on its own. You can copy it anywhere, pin it to the taskbar, or make a shortcut.
+The default build is a single file that runs on its own. You can copy it anywhere, pin it to the taskbar, or make a shortcut. (A build with the `video` feature also needs FFmpeg's DLLs; see below.)
 
 ### Optional: `.exe` file icon on Windows
 
-The window icon comes from `assets/icon.png`. To also change the icon of the `.exe` file itself (shown in File Explorer and the taskbar), add an `assets/icon.ico`, add `winresource = "0.1"` under `[build-dependencies]` in `Cargo.toml`, and create a `build.rs` next to `Cargo.toml`:
+The window icon comes from `assets/icon.png`. To also set the icon of the `.exe` file itself (shown in File Explorer and the taskbar), add an `assets/icon.ico`, add `winresource = "0.1"` under `[build-dependencies]` in `Cargo.toml`, and create a `build.rs` next to `Cargo.toml`:
 
 ```rust
 fn main() {
@@ -140,32 +222,57 @@ fn main() {
 }
 ```
 
+## Optional: embedded video playback
+
+The downloads on the Releases page open videos in your default player. You can build a version that plays them inside the app. It shows the picture only for now (no audio), and it needs FFmpeg to build.
+
+1. Install [LLVM](https://llvm.org/) (Windows: `winget install LLVM.LLVM`) and set `LIBCLANG_PATH` to its `bin` folder.
+2. Get an FFmpeg **shared** build that includes the development files (headers and `.lib` files) and whose version matches the `ffmpeg-next` version in `Cargo.toml`. Set `FFMPEG_DIR` to the folder containing `include`, `lib` and `bin`.
+3. Put FFmpeg's `bin` folder on your `PATH` so the program can find its DLLs when it runs.
+4. Build and run:
+   ```bash
+   cargo run --release --features video
+   ```
+
+Limitations of embedded playback: no audio, videos recorded in portrait on a phone may appear sideways, and videos wider than 1920 pixels are scaled down while decoding.
+
 ## Project structure
 
-```
-media_viewer/
+```text
+media-viewer/
 ├── Cargo.toml
+├── CHANGELOG.md
+├── LICENSE
+├── SECURITY.md
+├── deny.toml                 dependency audit settings (cargo-deny)
 ├── assets/
-│   └── icon.png          window icon (required)
+│   └── icon.png              window icon (required)
+├── docs/
+│   └── screenshots/          images used in this README
+├── .github/
+│   ├── workflows/            CI, security audit and release automation
+│   └── dependabot.yml
 └── src/
-    ├── main.rs           window and icon setup
-    ├── config.rs         all tunable settings
-    ├── media.rs          media types, folder scanning, favorites reading
-    ├── loader.rs         background image decoding
-    ├── widgets.rs        zoomable image area, heart and arrow buttons
-    └── app/
-        ├── mod.rs        app state, opening folders, filtering
-        ├── preload.rs    texture cache and preloading
-        ├── actions.rs    favorite, delete, rotate, zoom
-        ├── shortcuts.rs  keyboard shortcuts
-        ├── toolbar.rs    top toolbar
-        ├── view.rs       per-frame UI, status bar, image area
-        ├── video_view.rs 
-        └── open.rs       opening a file or folder, drag and drop
-    ├── video/            optional embedded video player (FFmpeg)
-        ├── mod.rs        app state, opening folders, filtering
-        ├── player.rs    texture cache and preloading
-        ├── stub.rs    favorite, delete, rotate, zoom
+    ├── main.rs               window and icon setup
+    ├── config.rs             all tunable settings
+    ├── media.rs              media types, folder scanning, favorites reading
+    ├── loader.rs             background image decoding
+    ├── widgets.rs            zoomable image area, heart and arrow buttons
+    ├── tests.rs              unit tests for scanning and filter rules
+    ├── app/
+    │   ├── mod.rs            app state, opening folders, filtering
+    │   ├── preload.rs        texture cache and preloading
+    │   ├── actions.rs        favorite, delete, rotate, zoom
+    │   ├── shortcuts.rs      keyboard shortcuts
+    │   ├── toolbar.rs        top toolbar
+    │   ├── view.rs           per-frame UI, status bar, image area
+    │   ├── video_view.rs     shows the current video (embedded player or fallback)
+    │   ├── open.rs           opening a file or folder, drag and drop
+    │   └── tests.rs          unit tests for navigation, filtering and opening
+    └── video/                optional embedded video player
+        ├── mod.rs            picks the real player or the stand-in
+        ├── player.rs         FFmpeg decoding and playback (feature `video`)
+        └── stub.rs           stand-in used when built without the feature
 ```
 
 To add a feature, create a new file in `src/app/`, declare it in `app/mod.rs`, and give it its own `impl App { ... }` block.
@@ -192,35 +299,21 @@ Each preloaded photo uses roughly width × height × 4 bytes of memory (about 48
 
 ## Known limitations
 
-- Videos open in your default player. Builds made with the optional `video` feature play videos inside the app (see below).
+- Videos open in your default player unless the app was built with the optional `video` feature, which is picture only (no audio yet).
 - Animated GIFs show only their first frame.
 - Photos are decoded at up to `MAX_TEXTURE_SIDE` pixels, so very deep zoom on large photos can look soft.
 - Favorites added or removed outside the app aren't noticed until you reopen the folder.
 - Only files directly inside the opened folder are shown; subfolders are not scanned.
-- Embedded video playback is an optional build feature (picture only, no audio yet). Downloads from
-  Releases open videos in your default player. To build with playback, install FFmpeg 8.x development
-  files, set `FFMPEG_DIR` and `LIBCLANG_PATH`, then run `cargo run --release --features video`.
+- Each file opened from Windows Explorer starts a new window.
 
-## Optional: embedded video playback
+## Security and changelog
 
-The downloads on the Releases page open videos in your default player. You can build a version that plays
-them inside the app. This is picture only for now (no audio), and it needs FFmpeg to build.
-
-1. Install [LLVM](https://llvm.org/) (Windows: `winget install LLVM.LLVM`) and set `LIBCLANG_PATH` to its `bin` folder.
-2. Get an FFmpeg **shared** build that includes the development files (headers and `.lib` files), matching the
-   `ffmpeg-next` version in `Cargo.toml` (<version>). Set `FFMPEG_DIR` to the folder containing `include`, `lib` and `bin`.
-3. Put FFmpeg's `bin` folder on your `PATH` so the program can find its DLLs when it runs.
-4. Build and run:
-   ```bash
-   cargo run --release --features video
-   ```
-
-Known limitations of embedded playback: no audio, videos recorded in portrait on a phone may appear sideways,
-and videos wider than 1920 pixels are scaled down while decoding.
+- See [SECURITY.md](SECURITY.md) for how to report a vulnerability and what the app does and doesn't do.
+- See [CHANGELOG.md](CHANGELOG.md) for what changed in each release.
 
 ## Dependencies
 
-[eframe / egui](https://github.com/emilk/egui) (GUI), [image](https://crates.io/crates/image) (decoding), [rfd](https://crates.io/crates/rfd) (folder picker), [trash](https://crates.io/crates/trash) (Recycle Bin), [open](https://crates.io/crates/open) (launch videos), [ffmpeg-next](https://crates.io/crates/ffmpeg-next) (optional, video playback). See `Cargo.toml` for versions.
+[eframe / egui](https://github.com/emilk/egui) (GUI), [image](https://crates.io/crates/image) (decoding), [rfd](https://crates.io/crates/rfd) (file and folder pickers), [trash](https://crates.io/crates/trash) (Recycle Bin), [open](https://crates.io/crates/open) (launch videos in the default player), [ffmpeg-next](https://crates.io/crates/ffmpeg-next) (optional, video playback). See `Cargo.toml` for versions.
 
 ## License
 
