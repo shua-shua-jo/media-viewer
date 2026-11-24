@@ -1,10 +1,10 @@
-//! The top toolbar: open folder, filter, navigation, jump-to-number, favorite, rotate, zoom, delete.
+//! The top toolbar: open folder, filter, sort, navigation, jump-to-number, favorite, rotate, zoom, delete.
 
 use eframe::egui;
 
 use super::App;
 use crate::config::{IMAGE_EXTS, VIDEO_EXTS};
-use crate::media::{Filter, Kind, Media};
+use crate::media::{Filter, Kind, Media, Sort};
 use crate::widgets::{Arrow, arrow_button, heart_button};
 
 impl App {
@@ -41,6 +41,18 @@ impl App {
                 ui.selectable_value(&mut self.filter, Filter::NotFavorites, "Not favorites");
                 if self.filter != before {
                     self.apply_filter(current.as_ref().map(|m| m.path.clone()));
+                }
+                ui.separator();
+                let sort_before = self.sort;
+                egui::ComboBox::from_id_salt("sort")
+                    .selected_text(self.sort.label())
+                    .show_ui(ui, |ui| {
+                        for s in Sort::ALL {
+                            ui.selectable_value(&mut self.sort, s, s.label());
+                        }
+                    });
+                if self.sort != sort_before {
+                    self.resort(current.as_ref().map(|m| m.path.clone()));
                 }
                 ui.separator();
                 if arrow_button(ui, Arrow::Left, "Previous (←)").clicked() {

@@ -8,17 +8,14 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use eframe::egui;
 
 use super::App;
-use crate::media::{Filter, Kind, Media};
+use crate::media::{Filter, Kind, Media, Sort};
 
 /// An App (with no folder opened) whose file list is exactly `names`.
 fn app_with(names: &[&str]) -> App {
     let mut app = App::new(None, egui::Context::default());
     app.all = names
         .iter()
-        .map(|n| Media {
-            path: PathBuf::from(n),
-            kind: Kind::Image,
-        })
+        .map(|n| Media::new(PathBuf::from(n), Kind::Image))
         .collect();
     app.apply_filter(None);
     app
@@ -189,4 +186,24 @@ fn opening_a_missing_path_reports_an_error_and_does_not_crash() {
 
     assert!(app.items.is_empty());
     assert!(app.status.contains("not found"));
+}
+
+#[test]
+fn changing_the_sort_keeps_the_current_photo_selected() {
+    let mut app = app_with(&["a.jpg", "b.jpg", "c.jpg"]);
+    app.index = 0; // looking at a.jpg
+
+    app.sort = Sort::NameDesc;
+    app.resort(Some(PathBuf::from("a.jpg")));
+
+    let order: Vec<PathBuf> = app.items.iter().map(|m| m.path.clone()).collect();
+    assert_eq!(
+        order,
+        [
+            PathBuf::from("c.jpg"),
+            PathBuf::from("b.jpg"),
+            PathBuf::from("a.jpg")
+        ]
+    );
+    assert_eq!(app.items[app.index].path, PathBuf::from("a.jpg"));
 }
