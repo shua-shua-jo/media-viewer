@@ -12,6 +12,7 @@
 
 mod actions;
 mod open;
+mod persist;
 mod preload;
 mod shortcuts;
 #[cfg(test)]
@@ -20,9 +21,11 @@ mod toolbar;
 mod video_view;
 mod view;
 
+use crate::settings::Settings;
 use std::collections::{HashMap, HashSet};
 use std::ffi::OsString;
 use std::path::PathBuf;
+use std::time::Instant;
 
 use eframe::egui;
 
@@ -69,17 +72,21 @@ pub struct App {
     player: Option<Player>,
     /// A video the player failed to start for, so we don't retry every frame.
     player_failed: Option<PathBuf>,
+    /// The current sort order.
     sort: Sort,
+    /// The settings as last written to disk, to detect changes.
+    saved_settings: Settings,
+    last_settings_save: Instant,
 }
 
 impl App {
-    pub fn new(initial: Option<PathBuf>, ctx: egui::Context) -> Self {
+    pub fn new(initial: Option<PathBuf>, ctx: egui::Context, settings: Settings) -> Self {
         let mut app = App {
             folder: None,
             all: Vec::new(),
             items: Vec::new(),
             favs: HashSet::new(),
-            filter: Filter::All,
+            filter: settings.filter,
             index: 0,
             status: "Open a folder to begin.".into(),
             loader: Loader::new(ctx, WORKERS),
@@ -96,10 +103,18 @@ impl App {
             goto_focused: false,
             player: None,
             player_failed: None,
-            sort: Sort::NameAsc,
+            sort: settings.sort,
+            saved_settings: settings.clone(),
+            last_settings_save: Instant::now(),
         };
-        if let Some(p) = initial {
-            app.open_path(p);
+        match initial {
+            Some(p) => app.open_path(p),
+            None => {
+                // Reopen the folder from last time, if it still exists.
+                if let Some(folder) = settings.last_folder.filter(|f| f.is_dir()) {
+                    app.load_folder(folder);
+                }
+            }
         }
         app
     }

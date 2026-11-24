@@ -51,6 +51,7 @@ impl eframe::App for App {
         if before != (self.items.len(), self.index, self.favs.len()) {
             ctx.request_repaint();
         }
+        self.persist_settings(&ctx);
     }
 }
 

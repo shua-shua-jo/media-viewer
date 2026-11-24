@@ -20,7 +20,7 @@ pub enum Kind {
 }
 
 /// Which files the viewer shows.
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 pub enum Filter {
     All,
     Favorites,

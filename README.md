@@ -24,6 +24,7 @@ Open a folder (or a single file), flip through your media, and mark favorites wi
 - [Install](#install)
   - [Verify your download](#verify-your-download)
 - [Usage](#usage)
+  - [Saved settings](#saved-settings)
 - [Keyboard shortcuts](#keyboard-shortcuts)
 - [Build from source](#build-from-source)
   - [Requirements](#requirements)
@@ -32,7 +33,7 @@ Open a folder (or a single file), flip through your media, and mark favorites wi
   - [Optional: `.exe` file icon on Windows](#optional-exe-file-icon-on-windows)
 - [Optional: embedded video playback](#optional-embedded-video-playback)
 - [Project structure](#project-structure)
-- [Configuration](#configuration)
+- [Configuration (build-time)](#configuration-build-time)
 - [Known limitations](#known-limitations)
 - [Security and changelog](#security-and-changelog)
 - [Dependencies](#dependencies)
@@ -46,6 +47,7 @@ Open a folder (or a single file), flip through your media, and mark favorites wi
 - Photos: JPG, JPEG, PNG, GIF, WebP, BMP.
 - Videos: MP4, MOV, MKV, AVI, WebM, M4V. Videos open in your default player; builds made with the optional `video` feature play them inside the app ([details below](#optional-embedded-video-playback)).
 - Previous / next buttons, arrow keys, and a number box to jump straight to any item.
+- Remembers your last folder, filter, sort order and window size between runs ([where it's saved](#saved-settings)).
 
 **Opening files**
 - Open a folder, or a single photo or video: its folder opens with that file selected.
@@ -106,10 +108,10 @@ Open a folder (or a single file), flip through your media, and mark favorites wi
 
    | System | File |
    |---|---|
-   | Windows | `media-viewer-<version>-windows-x86_64.zip` |
-   | Linux | `media-viewer-<version>-linux-x86_64.tar.gz` |
-   | macOS (Apple Silicon) | `media-viewer-<version>-macos-arm64.tar.gz` |
-   | macOS (Intel) | `media-viewer-<version>-macos-x86_64.tar.gz` |
+   | Windows | `media-viewer-v<version>-windows-x86_64.zip` |
+   | Linux | `media-viewer-v<version>-linux-x86_64.tar.gz` |
+   | macOS (Apple Silicon) | `media-viewer-v<version>-macos-arm64.tar.gz` |
+   | macOS (Intel) | `media-viewer-v<version>-macos-x86_64.tar.gz` |
 
 2. Unzip it and run `media-viewer` (`media-viewer.exe` on Windows).
 3. *(Optional)* [Verify the download](#verify-your-download).
@@ -125,7 +127,7 @@ Each release includes `SHA256SUMS.txt`. Compare your file's checksum with the ma
 
 ```powershell
 # Windows (PowerShell)
-Get-FileHash .\media-viewer-<version>-windows-x86_64.zip -Algorithm SHA256
+Get-FileHash .\media-viewer-v<version>-windows-x86_64.zip -Algorithm SHA256
 ```
 ```bash
 # Linux / macOS
@@ -148,6 +150,18 @@ media-viewer "D:\Photos"         # opens a folder
 ```
 
 **Open with from Windows Explorer.** Right-click a photo, choose **Open with**, then **Choose another app**, and pick `media-viewer.exe`. Tick **Always use this app** to make it the default for that file type.
+
+### Saved settings
+
+With no path given, the app reopens the folder you used last time. It remembers your last folder, filter, sort order and window size (not the window position) in a small text file:
+
+| OS | File |
+|---|---|
+| Windows | `%APPDATA%\media-viewer\settings.txt` |
+| macOS | `~/Library/Application Support/media-viewer/settings.txt` |
+| Linux | `~/.config/media-viewer/settings.txt` |
+
+Delete the file to reset everything to the defaults. Nothing is sent anywhere.
 
 ## Keyboard shortcuts
 
@@ -256,10 +270,11 @@ media-viewer/
 └── src/
     ├── main.rs               window and icon setup
     ├── config.rs             all tunable settings
-    ├── media.rs              media types, folder scanning, favorites reading
+    ├── media.rs              media types, folder scanning, sorting, favorites reading
     ├── loader.rs             background image decoding
     ├── widgets.rs            zoomable image area, heart and arrow buttons
-    ├── tests.rs              unit tests for scanning and filter rules
+    ├── settings.rs           remembered settings (loading, saving, file format)
+    ├── tests.rs              unit tests for scanning, sorting and filter rules
     ├── app/
     │   ├── mod.rs            app state, opening folders, filtering
     │   ├── preload.rs        texture cache and preloading
@@ -269,6 +284,7 @@ media-viewer/
     │   ├── view.rs           per-frame UI, status bar, image area
     │   ├── video_view.rs     shows the current video (embedded player or fallback)
     │   ├── open.rs           opening a file or folder, drag and drop
+    │   ├── persist.rs        saves settings while the app runs
     │   └── tests.rs          unit tests for navigation, filtering and opening
     └── video/                optional embedded video player
         ├── mod.rs            picks the real player or the stand-in
@@ -278,9 +294,9 @@ media-viewer/
 
 To add a feature, create a new file in `src/app/`, declare it in `app/mod.rs`, and give it its own `impl App { ... }` block.
 
-## Configuration
+## Configuration (build-time)
 
-Settings live in `src/config.rs`. Change a value and rebuild.
+Build-time settings live in `src/config.rs`. Change a value and rebuild. Your personal preferences (last folder, sort order, window size) are saved separately; see [Saved settings](#saved-settings).
 
 | Setting | Default | What it does |
 |---|---|---|
@@ -307,6 +323,7 @@ Each preloaded photo uses roughly width × height × 4 bytes of memory (about 48
 - Only files directly inside the opened folder are shown; subfolders are not scanned.
 - Each file opened from Windows Explorer starts a new window.
 - "Date" sorting uses the file's last-modified time, not the date a photo was taken.
+- The window size is remembered, but not its position.
 
 ## Security and changelog
 

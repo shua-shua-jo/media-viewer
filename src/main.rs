@@ -5,6 +5,7 @@ mod app;
 mod config;
 mod loader;
 mod media;
+mod settings;
 #[cfg(test)]
 mod tests;
 mod video;
@@ -32,14 +33,27 @@ fn main() -> eframe::Result {
     // Optional: pass a folder on the command line, e.g. `cargo run --release -- C:\Photos`
     let initial = std::env::args().nth(1).map(PathBuf::from);
 
+    let settings = settings::Settings::load();
+
+    let mut viewport = egui::ViewportBuilder::default()
+        .with_icon(load_icon())
+        .with_min_inner_size([MIN_WINDOW_WIDTH, MIN_WINDOW_HEIGHT]);
+    if let Some((w, h)) = settings.window_size {
+        viewport = viewport.with_inner_size([
+            (w as f32).max(MIN_WINDOW_WIDTH),
+            (h as f32).max(MIN_WINDOW_HEIGHT),
+        ]);
+    }
+    if settings.maximized {
+        viewport = viewport.with_maximized(true);
+    }
+
     eframe::run_native(
         "Media Viewer",
         eframe::NativeOptions {
-            viewport: egui::ViewportBuilder::default()
-                .with_icon(load_icon())
-                .with_min_inner_size([MIN_WINDOW_WIDTH, MIN_WINDOW_HEIGHT]),
+            viewport,
             ..Default::default()
         },
-        Box::new(|cc| Ok(Box::new(App::new(initial, cc.egui_ctx.clone())))),
+        Box::new(move |cc| Ok(Box::new(App::new(initial, cc.egui_ctx.clone(), settings)))),
     )
 }
