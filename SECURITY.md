@@ -26,6 +26,7 @@ times vary, but valid reports are taken seriously and you will be credited in th
 - Deleting a file moves it to the Recycle Bin / Trash. The app never permanently deletes files.
 - Rotation and zoom change only the on-screen view, never your files.
 - It does not collect telemetry and does not intentionally make network connections.
+- It saves your last folder, filter, sort order and window size in a small settings file in your user config folder. Nothing is sent anywhere.
 
 ## Verifying a download
 

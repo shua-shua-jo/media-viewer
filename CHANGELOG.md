@@ -8,6 +8,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 - Sort options: by name, date modified, or size, in either direction. Name order now ignores case and compares numbers naturally (`img2.jpg` before `img10.jpg`).
+- Remembers the last folder, filter, sort order, and window size between runs.
 
 ## [1.1.0] - 2026-11-23
 

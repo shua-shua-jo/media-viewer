@@ -9,10 +9,11 @@ use eframe::egui;
 
 use super::App;
 use crate::media::{Filter, Kind, Media, Sort};
+use crate::settings::Settings;
 
 /// An App (with no folder opened) whose file list is exactly `names`.
 fn app_with(names: &[&str]) -> App {
-    let mut app = App::new(None, egui::Context::default());
+    let mut app = App::new(None, egui::Context::default(), Settings::default());
     app.all = names
         .iter()
         .map(|n| Media::new(PathBuf::from(n), Kind::Image))
@@ -125,7 +126,7 @@ fn opening_a_file_shows_its_folder_and_selects_the_file() {
     for name in ["a.jpg", "b.jpg", "c.jpg"] {
         fs::write(dir.join(name), b"x").unwrap();
     }
-    let mut app = App::new(None, egui::Context::default());
+    let mut app = App::new(None, egui::Context::default(), Settings::default());
 
     app.open_path(dir.join("b.jpg"));
 
@@ -138,7 +139,7 @@ fn opening_a_file_shows_its_folder_and_selects_the_file() {
 fn opening_a_file_resets_a_filter_that_would_hide_it() {
     let dir = temp_dir("openfilter");
     fs::write(dir.join("a.jpg"), b"x").unwrap();
-    let mut app = App::new(None, egui::Context::default());
+    let mut app = App::new(None, egui::Context::default(), Settings::default());
     app.filter = Filter::Favorites; // nothing is a favorite, so this would hide everything
 
     app.open_path(dir.join("a.jpg"));
@@ -154,7 +155,7 @@ fn opening_a_folder_starts_at_the_first_item() {
     for name in ["a.jpg", "b.jpg"] {
         fs::write(dir.join(name), b"x").unwrap();
     }
-    let mut app = App::new(None, egui::Context::default());
+    let mut app = App::new(None, egui::Context::default(), Settings::default());
 
     app.open_path(dir.clone());
 
@@ -168,7 +169,7 @@ fn opening_an_unsupported_file_still_shows_its_folder() {
     let dir = temp_dir("openother");
     fs::write(dir.join("a.jpg"), b"x").unwrap();
     fs::write(dir.join("notes.txt"), b"x").unwrap();
-    let mut app = App::new(None, egui::Context::default());
+    let mut app = App::new(None, egui::Context::default(), Settings::default());
 
     app.open_path(dir.join("notes.txt"));
 
@@ -180,7 +181,7 @@ fn opening_an_unsupported_file_still_shows_its_folder() {
 
 #[test]
 fn opening_a_missing_path_reports_an_error_and_does_not_crash() {
-    let mut app = App::new(None, egui::Context::default());
+    let mut app = App::new(None, egui::Context::default(), Settings::default());
 
     app.open_path(PathBuf::from("/this/path/does/not/exist/photo.jpg"));
 
