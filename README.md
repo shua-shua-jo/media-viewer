@@ -41,7 +41,8 @@ Open a folder (or a single file), flip through your media, and mark favorites wi
 ## Features
 
 **Browsing**
-- Opens any folder and shows the photos and videos directly inside it, sorted by file name.
+- Opens any folder and shows the photos and videos directly inside it (sorted by name by default).
+- Sort by name, date modified, or size, in either direction, from the toolbar. Name order is "natural": `img2.jpg` comes before `img10.jpg`.
 - Photos: JPG, JPEG, PNG, GIF, WebP, BMP.
 - Videos: MP4, MOV, MKV, AVI, WebM, M4V. Videos open in your default player; builds made with the optional `video` feature play them inside the app ([details below](#optional-embedded-video-playback)).
 - Previous / next buttons, arrow keys, and a number box to jump straight to any item.
@@ -305,6 +306,7 @@ Each preloaded photo uses roughly width × height × 4 bytes of memory (about 48
 - Favorites added or removed outside the app aren't noticed until you reopen the folder.
 - Only files directly inside the opened folder are shown; subfolders are not scanned.
 - Each file opened from Windows Explorer starts a new window.
+- "Date" sorting uses the file's last-modified time, not the date a photo was taken.
 
 ## Security and changelog
 

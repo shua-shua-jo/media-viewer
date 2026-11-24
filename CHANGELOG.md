@@ -6,6 +6,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Added
+- Sort options: by name, date modified, or size, in either direction. Name order now ignores case and compares numbers naturally (`img2.jpg` before `img10.jpg`).
+
 ## [1.1.0] - 2026-11-23
 
 ### Added

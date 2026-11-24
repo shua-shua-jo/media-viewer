@@ -28,7 +28,7 @@ use eframe::egui;
 
 use crate::config::WORKERS;
 use crate::loader::{Key, Loader};
-use crate::media::{self, Filter, Media};
+use crate::media::{self, Filter, Media, Sort};
 use crate::video::Player;
 
 pub struct App {
@@ -69,6 +69,7 @@ pub struct App {
     player: Option<Player>,
     /// A video the player failed to start for, so we don't retry every frame.
     player_failed: Option<PathBuf>,
+    sort: Sort,
 }
 
 impl App {
@@ -95,6 +96,7 @@ impl App {
             goto_focused: false,
             player: None,
             player_failed: None,
+            sort: Sort::NameAsc,
         };
         if let Some(p) = initial {
             app.open_path(p);
@@ -114,6 +116,7 @@ impl App {
             }
         };
         self.all = items;
+        media::sort_media(&mut self.all, self.sort);
         self.favs = media::load_favs(&folder);
         self.folder = Some(folder);
         self.rotations.clear();
@@ -150,6 +153,12 @@ impl App {
             .unwrap_or(fallback);
         self.items = visible;
         self.index = new_index;
+    }
+
+    /// Re-sorts the file list after the sort order changes, keeping `keep` selected if possible.
+    fn resort(&mut self, keep: Option<PathBuf>) {
+        media::sort_media(&mut self.all, self.sort);
+        self.apply_filter(keep);
     }
 
     /// Moves forward/backward through the visible list, wrapping around at the ends.
