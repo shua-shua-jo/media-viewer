@@ -208,3 +208,59 @@ fn changing_the_sort_keeps_the_current_photo_selected() {
     );
     assert_eq!(app.items[app.index].path, PathBuf::from("a.jpg"));
 }
+
+// ---- slideshow ----
+
+fn app_with_kinds(files: &[(&str, Kind)]) -> App {
+    let mut app = App::new(None, egui::Context::default(), Settings::default());
+    app.all = files
+        .iter()
+        .map(|(name, kind)| Media::new(PathBuf::from(name), *kind))
+        .collect();
+    app.apply_filter(None);
+    app
+}
+
+#[test]
+fn slideshow_advance_skips_videos_and_wraps_around() {
+    let mut app = app_with_kinds(&[
+        ("a.jpg", Kind::Image),
+        ("b.mp4", Kind::Video),
+        ("c.jpg", Kind::Image),
+    ]);
+
+    app.advance_slideshow();
+    assert_eq!(app.index, 2); // skipped the video
+
+    app.advance_slideshow();
+    assert_eq!(app.index, 0); // wrapped around
+}
+
+#[test]
+fn slideshow_does_not_start_when_there_are_only_videos() {
+    let mut app = app_with_kinds(&[("a.mp4", Kind::Video), ("b.mov", Kind::Video)]);
+
+    app.toggle_slideshow();
+
+    assert!(!app.slideshow);
+}
+
+#[test]
+fn starting_the_slideshow_on_a_video_jumps_to_the_next_photo() {
+    let mut app = app_with_kinds(&[("a.mp4", Kind::Video), ("b.jpg", Kind::Image)]);
+
+    app.toggle_slideshow();
+
+    assert!(app.slideshow);
+    assert_eq!(app.index, 1);
+}
+
+#[test]
+fn toggling_the_slideshow_twice_stops_it() {
+    let mut app = app_with_kinds(&[("a.jpg", Kind::Image), ("b.jpg", Kind::Image)]);
+
+    app.toggle_slideshow();
+    assert!(app.slideshow);
+    app.toggle_slideshow();
+    assert!(!app.slideshow);
+}

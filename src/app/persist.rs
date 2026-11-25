@@ -55,7 +55,12 @@ impl App {
             filter: self.filter,
             sort: self.sort,
             window_size,
-            maximized,
+            // While fullscreen the "maximized" flag isn't meaningful; keep what was saved before.
+            maximized: if fullscreen {
+                self.saved_settings.maximized
+            } else {
+                maximized
+            },
         }
     }
 }

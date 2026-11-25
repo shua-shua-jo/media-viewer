@@ -3,7 +3,7 @@
 use eframe::egui;
 
 use super::App;
-use crate::config::{IMAGE_EXTS, VIDEO_EXTS};
+use crate::config::{IMAGE_EXTS, SLIDESHOW_CHOICES, VIDEO_EXTS};
 use crate::media::{Filter, Kind, Media, Sort};
 use crate::widgets::{Arrow, arrow_button, heart_button};
 
@@ -116,6 +116,33 @@ impl App {
                     .clicked()
                 {
                     self.rotate_current(true);
+                }
+                ui.separator();
+                if ui.button("Fullscreen (F11)").clicked() {
+                    self.toggle_fullscreen(ui.ctx());
+                }
+                let slideshow_label = if self.slideshow {
+                    "Stop slideshow (S)"
+                } else {
+                    "Slideshow (S)"
+                };
+                if ui.button(slideshow_label).clicked() {
+                    self.toggle_slideshow();
+                }
+                let secs_before = self.slideshow_secs;
+                egui::ComboBox::from_id_salt("slideshow_secs")
+                    .selected_text(format!("{} s", self.slideshow_secs))
+                    .show_ui(ui, |ui| {
+                        for secs in SLIDESHOW_CHOICES {
+                            ui.selectable_value(
+                                &mut self.slideshow_secs,
+                                secs,
+                                format!("{secs} s"),
+                            );
+                        }
+                    });
+                if self.slideshow_secs != secs_before {
+                    self.restart_slideshow_timer();
                 }
                 ui.separator();
                 if ui
