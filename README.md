@@ -69,6 +69,13 @@ Open a folder (or a single file), flip through your media, and mark favorites wi
 - Rotates the *view only*. The file on disk is never changed.
 - Each photo remembers its rotation while the app is open.
 
+**Fullscreen and Slideshow**
+- Switch to fullscreen mode to enjoy photos without window borders or distractions. Toggle fullscreen using the toolbar button or `F11`.
+- Start a slideshow to automatically cycle through photos in the current folder or filtered view.
+- Videos are automatically skipped during slideshows.
+- Press `S` to start or stop the slideshow.
+- Press `Esc` to exit fullscreen mode.
+
 **Delete**
 - Sends the file to the Recycle Bin / Trash, so it can be recovered.
 - A copy in `Favorites`, if there is one, is left alone.
@@ -174,6 +181,9 @@ Delete the file to reset everything to the defaults. Nothing is sent anywhere.
 | `+` / `-` | Zoom in / out |
 | `0` | Reset zoom to fit |
 | `Space` | Play / pause (embedded video builds only) |
+| `F11` | Toggle fullscreen mode |
+| `Esc` | Exit fullscreen |
+| `S` | Start / stop slideshow |
 
 Shortcuts are paused while you're typing in the number box.
 
@@ -285,7 +295,9 @@ media-viewer/
     │   ├── video_view.rs     shows the current video (embedded player or fallback)
     │   ├── open.rs           opening a file or folder, drag and drop
     │   ├── persist.rs        saves settings while the app runs
-    │   └── tests.rs          unit tests for navigation, filtering and opening
+    │   ├── tests.rs          unit tests for navigation, filtering and opening
+    │   ├── fullscreen.rs     fullscreen window management and toggle actions
+    │   └── slideshow.rs      automatic photo navigation and slideshow controls
     └── video/                optional embedded video player
         ├── mod.rs            picks the real player or the stand-in
         ├── player.rs         FFmpeg decoding and playback (feature `video`)
@@ -324,6 +336,7 @@ Each preloaded photo uses roughly width × height × 4 bytes of memory (about 48
 - Each file opened from Windows Explorer starts a new window.
 - "Date" sorting uses the file's last-modified time, not the date a photo was taken.
 - The window size is remembered, but not its position.
+- Slideshows display photos only; video files are skipped.
 
 ## Security and changelog
 

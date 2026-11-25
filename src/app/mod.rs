@@ -11,10 +11,12 @@
 //! and give it its own `impl App { ... }` block.
 
 mod actions;
+mod fullscreen;
 mod open;
 mod persist;
 mod preload;
 mod shortcuts;
+mod slideshow;
 #[cfg(test)]
 mod tests;
 mod toolbar;
@@ -29,6 +31,7 @@ use std::time::Instant;
 
 use eframe::egui;
 
+use crate::config::SLIDESHOW_DEFAULT_SECS;
 use crate::config::WORKERS;
 use crate::loader::{Key, Loader};
 use crate::media::{self, Filter, Media, Sort};
@@ -77,6 +80,13 @@ pub struct App {
     /// The settings as last written to disk, to detect changes.
     saved_settings: Settings,
     last_settings_save: Instant,
+    fullscreen: bool,
+    fullscreen_hint_until: Option<Instant>,
+    slideshow: bool,
+    slideshow_secs: u32,
+    slideshow_next: Instant,
+    /// The photo the slideshow last showed; a different index means the user moved themselves.
+    slideshow_seen_index: usize,
 }
 
 impl App {
@@ -106,6 +116,12 @@ impl App {
             sort: settings.sort,
             saved_settings: settings.clone(),
             last_settings_save: Instant::now(),
+            fullscreen: false,
+            fullscreen_hint_until: None,
+            slideshow: false,
+            slideshow_secs: SLIDESHOW_DEFAULT_SECS,
+            slideshow_next: Instant::now(),
+            slideshow_seen_index: 0,
         };
         match initial {
             Some(p) => app.open_path(p),

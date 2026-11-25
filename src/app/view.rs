@@ -11,7 +11,11 @@ use crate::widgets::draw_zoomable;
 impl eframe::App for App {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         let ctx = ui.ctx().clone();
+        if self.fullscreen {
+            self.goto_focused = false;
+        }
         self.handle_shortcuts(&ctx);
+        self.tick_slideshow(&ctx);
         self.handle_dropped_files(&ctx);
 
         let current = self.items.get(self.index).cloned();
@@ -43,9 +47,12 @@ impl eframe::App for App {
         // Background loading: pick up finished images, then (re)plan what to keep and preload.
         let img = self.sync_images(&ctx, &current);
 
-        self.show_toolbar(ui, &current, is_fav);
-        self.show_status_bar(ui, &current, img.loading);
+        if !self.fullscreen {
+            self.show_toolbar(ui, &current, is_fav);
+            self.show_status_bar(ui, &current, img.loading);
+        }
         self.show_central(ui, &current, &img);
+        self.draw_fullscreen_hint(ui);
 
         // If a toolbar action changed what is shown, draw one more frame right away.
         if before != (self.items.len(), self.index, self.favs.len()) {

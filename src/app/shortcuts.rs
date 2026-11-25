@@ -14,21 +14,37 @@ impl App {
             return;
         }
 
-        let (left, right, fav, del, rot_r, rot_l, zoom_in, zoom_out, zoom_fit, space) =
-            ctx.input(|i| {
-                (
-                    i.key_pressed(egui::Key::ArrowLeft),
-                    i.key_pressed(egui::Key::ArrowRight),
-                    i.key_pressed(egui::Key::F),
-                    i.key_pressed(egui::Key::Delete),
-                    i.key_pressed(egui::Key::R),
-                    i.key_pressed(egui::Key::L),
-                    i.key_pressed(egui::Key::Plus) || i.key_pressed(egui::Key::Equals),
-                    i.key_pressed(egui::Key::Minus),
-                    i.key_pressed(egui::Key::Num0),
-                    i.key_pressed(egui::Key::Space),
-                )
-            });
+        let (
+            left,
+            right,
+            fav,
+            del,
+            rot_r,
+            rot_l,
+            zoom_in,
+            zoom_out,
+            zoom_fit,
+            space,
+            fullscreen,
+            esc,
+            slideshow_key,
+        ) = ctx.input(|i| {
+            (
+                i.key_pressed(egui::Key::ArrowLeft),
+                i.key_pressed(egui::Key::ArrowRight),
+                i.key_pressed(egui::Key::F),
+                i.key_pressed(egui::Key::Delete),
+                i.key_pressed(egui::Key::R),
+                i.key_pressed(egui::Key::L),
+                i.key_pressed(egui::Key::Plus) || i.key_pressed(egui::Key::Equals),
+                i.key_pressed(egui::Key::Minus),
+                i.key_pressed(egui::Key::Num0),
+                i.key_pressed(egui::Key::Space),
+                i.key_pressed(egui::Key::F11),
+                i.key_pressed(egui::Key::Escape),
+                i.key_pressed(egui::Key::S),
+            )
+        });
 
         if left {
             self.step(-1);
@@ -59,6 +75,15 @@ impl App {
         }
         if space && let Some(p) = &mut self.player {
             p.toggle_pause();
+        }
+        if fullscreen {
+            self.toggle_fullscreen(ctx);
+        }
+        if esc && self.fullscreen {
+            self.set_fullscreen(ctx, false);
+        }
+        if slideshow_key {
+            self.toggle_slideshow();
         }
     }
 }
