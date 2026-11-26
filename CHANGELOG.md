@@ -10,6 +10,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - Sort options: by name, date modified, or size, in either direction. Name order now ignores case and compares numbers naturally (`img2.jpg` before `img10.jpg`).
 - Remembers the last folder, filter, sort order, and window size between runs.
 - Fullscreen mode (F11, exit with Esc) and a slideshow (S) with a selectable interval; the slideshow skips videos.
+- Undo delete (Ctrl+Z or the Undo delete button) restores the most recently deleted files from the Recycle Bin. Windows and Linux only.
 
 ## [1.1.0] - 2026-11-23
 

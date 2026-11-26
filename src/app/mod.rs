@@ -20,10 +20,10 @@ mod slideshow;
 #[cfg(test)]
 mod tests;
 mod toolbar;
+mod undo;
 mod video_view;
 mod view;
 
-use crate::settings::Settings;
 use std::collections::{HashMap, HashSet};
 use std::ffi::OsString;
 use std::path::PathBuf;
@@ -35,6 +35,8 @@ use crate::config::SLIDESHOW_DEFAULT_SECS;
 use crate::config::WORKERS;
 use crate::loader::{Key, Loader};
 use crate::media::{self, Filter, Media, Sort};
+use crate::recycle::Deleted;
+use crate::settings::Settings;
 use crate::video::Player;
 
 pub struct App {
@@ -87,6 +89,7 @@ pub struct App {
     slideshow_next: Instant,
     /// The photo the slideshow last showed; a different index means the user moved themselves.
     slideshow_seen_index: usize,
+    undo_stack: Vec<Deleted>,
 }
 
 impl App {
@@ -122,6 +125,7 @@ impl App {
             slideshow_secs: SLIDESHOW_DEFAULT_SECS,
             slideshow_next: Instant::now(),
             slideshow_seen_index: 0,
+            undo_stack: Vec::new(),
         };
         match initial {
             Some(p) => app.open_path(p),

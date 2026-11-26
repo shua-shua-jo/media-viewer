@@ -47,3 +47,5 @@ pub const VIDEO_QUEUE_LEN: usize = 3;
 /// Choices in the slideshow interval menu (seconds), and the starting value.
 pub const SLIDESHOW_CHOICES: [u32; 5] = [2, 3, 5, 10, 30];
 pub const SLIDESHOW_DEFAULT_SECS: u32 = 3;
+/// How many deleted files can be undone.
+pub const UNDO_LIMIT: usize = 5;

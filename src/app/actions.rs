@@ -8,6 +8,7 @@ use eframe::egui;
 use super::App;
 use crate::config::{FAV_DIR, MAX_ZOOM, MIN_ZOOM};
 use crate::media::{Kind, Media};
+use crate::recycle;
 
 impl App {
     fn fav_path(&self, media: &Media) -> Option<PathBuf> {
@@ -67,8 +68,9 @@ impl App {
         let Some(media) = self.items.get(self.index).cloned() else {
             return;
         };
-        match trash::delete(&media.path) {
-            Ok(()) => {
+        match recycle::delete(&media.path) {
+            Ok(deleted) => {
+                self.remember_deleted(deleted);
                 self.rotations.remove(&media.path);
                 self.all.retain(|m| m.path != media.path);
                 self.items.remove(self.index);
@@ -76,7 +78,11 @@ impl App {
                     self.index = self.items.len().saturating_sub(1);
                 }
                 self.shown = None;
-                self.status = "Moved to recycle bin.".into();
+                self.status = if recycle::UNDO_SUPPORTED {
+                    "Moved to recycle bin. Press Ctrl+Z to undo.".into()
+                } else {
+                    "Moved to recycle bin.".into()
+                };
             }
             Err(e) => self.status = format!("Delete failed: {e}"),
         }

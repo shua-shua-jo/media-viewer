@@ -79,6 +79,7 @@ Open a folder (or a single file), flip through your media, and mark favorites wi
 **Delete**
 - Sends the file to the Recycle Bin / Trash, so it can be recovered.
 - A copy in `Favorites`, if there is one, is left alone.
+- You can undo the deletion of up to 5 photos or videos.
 
 **Performance**
 - Images are decoded on background threads, and the next few photos are preloaded, so moving between photos feels instant.
@@ -184,6 +185,7 @@ Delete the file to reset everything to the defaults. Nothing is sent anywhere.
 | `F11` | Toggle fullscreen mode |
 | `Esc` | Exit fullscreen |
 | `S` | Start / stop slideshow |
+| `Ctrl+Z` | Undo delete |
 
 Shortcuts are paused while you're typing in the number box.
 
@@ -337,6 +339,7 @@ Each preloaded photo uses roughly width × height × 4 bytes of memory (about 48
 - "Date" sorting uses the file's last-modified time, not the date a photo was taken.
 - The window size is remembered, but not its position.
 - Slideshows display photos only; video files are skipped.
+- Undo delete isn't available on macOS
 
 ## Security and changelog
 

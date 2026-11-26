@@ -5,6 +5,7 @@ use eframe::egui;
 use super::App;
 use crate::config::{IMAGE_EXTS, SLIDESHOW_CHOICES, VIDEO_EXTS};
 use crate::media::{Filter, Kind, Media, Sort};
+use crate::recycle;
 use crate::widgets::{Arrow, arrow_button, heart_button};
 
 impl App {
@@ -151,6 +152,15 @@ impl App {
                 {
                     self.delete_current();
                 }
+                ui.separator();
+                ui.add_enabled_ui(
+                    recycle::UNDO_SUPPORTED && !self.undo_stack.is_empty(),
+                    |ui| {
+                        if ui.button("Undo delete (Ctrl+Z)").clicked() {
+                            self.undo_delete();
+                        }
+                    },
+                );
             });
         });
     }

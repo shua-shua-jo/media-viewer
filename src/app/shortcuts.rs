@@ -28,6 +28,7 @@ impl App {
             fullscreen,
             esc,
             slideshow_key,
+            undo,
         ) = ctx.input(|i| {
             (
                 i.key_pressed(egui::Key::ArrowLeft),
@@ -43,6 +44,7 @@ impl App {
                 i.key_pressed(egui::Key::F11),
                 i.key_pressed(egui::Key::Escape),
                 i.key_pressed(egui::Key::S),
+                i.modifiers.command && i.key_pressed(egui::Key::Z),
             )
         });
 
@@ -84,6 +86,9 @@ impl App {
         }
         if slideshow_key {
             self.toggle_slideshow();
+        }
+        if undo {
+            self.undo_delete();
         }
     }
 }
