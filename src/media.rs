@@ -92,6 +92,35 @@ impl Media {
     }
 }
 
+/// Whether `path` looks like a photo or a video, judging by its extension.
+fn kind_of(path: &Path) -> Option<Kind> {
+    let ext = path
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(|e| e.to_lowercase())
+        .unwrap_or_default();
+    if IMAGE_EXTS.contains(&ext.as_str()) {
+        Some(Kind::Image)
+    } else if VIDEO_EXTS.contains(&ext.as_str()) {
+        Some(Kind::Video)
+    } else {
+        None
+    }
+}
+
+/// Builds a `Media` entry for a single existing file (`None` if it isn't a supported photo or video).
+pub fn media_for(path: &Path) -> Option<Media> {
+    if !path.is_file() {
+        return None;
+    }
+    let kind = kind_of(path)?;
+    let meta = fs::metadata(path).ok();
+    let mut media = Media::new(path.to_path_buf(), kind);
+    media.size = meta.as_ref().map(|m| m.len()).unwrap_or(0);
+    media.modified = meta.and_then(|m| m.modified().ok());
+    Some(media)
+}
+
 /// Lists the photos and videos directly inside `folder`, sorted by name.
 /// Subfolders (including the Favorites folder) are not scanned.
 pub fn scan_folder(folder: &Path) -> io::Result<Vec<Media>> {
@@ -101,16 +130,7 @@ pub fn scan_folder(folder: &Path) -> io::Result<Vec<Media>> {
         if !path.is_file() {
             continue;
         }
-        let ext = path
-            .extension()
-            .and_then(|e| e.to_str())
-            .map(|e| e.to_lowercase())
-            .unwrap_or_default();
-        let kind = if IMAGE_EXTS.contains(&ext.as_str()) {
-            Kind::Image
-        } else if VIDEO_EXTS.contains(&ext.as_str()) {
-            Kind::Video
-        } else {
+        let Some(kind) = kind_of(&path) else {
             continue;
         };
         let meta = entry.metadata().ok();

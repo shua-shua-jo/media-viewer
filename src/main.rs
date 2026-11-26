@@ -5,6 +5,7 @@ mod app;
 mod config;
 mod loader;
 mod media;
+mod recycle;
 mod settings;
 #[cfg(test)]
 mod tests;

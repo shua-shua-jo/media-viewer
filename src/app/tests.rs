@@ -264,3 +264,66 @@ fn toggling_the_slideshow_twice_stops_it() {
     app.toggle_slideshow();
     assert!(!app.slideshow);
 }
+
+// ---- undo delete ----
+
+#[test]
+fn restored_file_is_added_back_and_selected() {
+    let dir = temp_dir("undo");
+    for name in ["a.jpg", "b.jpg", "c.jpg"] {
+        fs::write(dir.join(name), b"x").unwrap();
+    }
+    let mut app = App::new(None, egui::Context::default(), Settings::default());
+    app.open_path(dir.clone());
+
+    // Pretend b.jpg was deleted (removed from the lists) and then restored on disk.
+    app.all.retain(|m| m.path.file_name().unwrap() != "b.jpg");
+    app.apply_filter(None);
+    assert_eq!(app.items.len(), 2);
+
+    app.reinsert(&app.folder.clone().unwrap().join("b.jpg"));
+
+    assert_eq!(app.items.len(), 3);
+    assert_eq!(current_name(&app), "b.jpg");
+    fs::remove_dir_all(&dir).unwrap();
+}
+
+#[test]
+fn restoring_into_a_folder_that_is_not_open_changes_nothing() {
+    let open_dir = temp_dir("undo_open");
+    let other_dir = temp_dir("undo_other");
+    fs::write(open_dir.join("a.jpg"), b"x").unwrap();
+    fs::write(other_dir.join("z.jpg"), b"x").unwrap();
+    let mut app = App::new(None, egui::Context::default(), Settings::default());
+    app.open_path(open_dir.clone());
+
+    app.reinsert(&other_dir.join("z.jpg"));
+
+    assert_eq!(app.items.len(), 1);
+    fs::remove_dir_all(&open_dir).unwrap();
+    fs::remove_dir_all(&other_dir).unwrap();
+}
+
+#[test]
+fn only_the_most_recent_deletions_are_remembered() {
+    use crate::config::UNDO_LIMIT;
+    use crate::recycle::{self, Deleted};
+
+    let mut app = App::new(None, egui::Context::default(), Settings::default());
+    for i in 0..(UNDO_LIMIT + 5) {
+        app.remember_deleted(Deleted {
+            path: PathBuf::from(format!("{i}.jpg")),
+            deleted_at_secs: i as i64,
+        });
+    }
+
+    if recycle::UNDO_SUPPORTED {
+        assert_eq!(app.undo_stack.len(), UNDO_LIMIT);
+        assert_eq!(
+            app.undo_stack.last().unwrap().path,
+            PathBuf::from(format!("{}.jpg", UNDO_LIMIT + 4))
+        );
+    } else {
+        assert!(app.undo_stack.is_empty());
+    }
+}
