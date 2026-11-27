@@ -12,6 +12,7 @@
 
 mod actions;
 mod fullscreen;
+mod gif_view;
 mod open;
 mod persist;
 mod preload;
@@ -31,6 +32,7 @@ use std::time::Instant;
 
 use eframe::egui;
 
+use crate::animation::AnimPlayer;
 use crate::config::SLIDESHOW_DEFAULT_SECS;
 use crate::config::WORKERS;
 use crate::loader::{Key, Loader};
@@ -91,6 +93,7 @@ pub struct App {
     slideshow_seen_index: usize,
     undo_stack: Vec<Deleted>,
     include_subfolders: bool,
+    anim: Option<AnimPlayer>,
 }
 
 impl App {
@@ -128,6 +131,7 @@ impl App {
             slideshow_seen_index: 0,
             undo_stack: Vec::new(),
             include_subfolders: settings.include_subfolders,
+            anim: None,
         };
         match initial {
             Some(p) => app.open_path(p),
