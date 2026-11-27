@@ -3,7 +3,6 @@
 use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::collections::HashSet;
-use std::ffi::OsString;
 use std::fs;
 use std::io;
 use std::iter::Peekable;
@@ -11,7 +10,7 @@ use std::path::{Path, PathBuf};
 use std::str::Chars;
 use std::time::SystemTime;
 
-use crate::config::{FAV_DIR, IMAGE_EXTS, VIDEO_EXTS};
+use crate::config::{FAV_DIR, IMAGE_EXTS, MAX_SCAN_DEPTH, MAX_SCAN_FILES, VIDEO_EXTS};
 
 #[derive(Clone, Copy, PartialEq)]
 pub enum Kind {
@@ -121,26 +120,78 @@ pub fn media_for(path: &Path) -> Option<Media> {
     Some(media)
 }
 
-/// Lists the photos and videos directly inside `folder`, sorted by name.
-/// Subfolders (including the Favorites folder) are not scanned.
-pub fn scan_folder(folder: &Path) -> io::Result<Vec<Media>> {
-    let mut items = Vec::new();
-    for entry in fs::read_dir(folder)?.flatten() {
-        let path = entry.path();
-        if !path.is_file() {
-            continue;
-        }
-        let Some(kind) = kind_of(&path) else {
-            continue;
+/// The result of scanning a folder.
+pub struct Scan {
+    pub items: Vec<Media>,
+    /// True if scanning stopped early because the file limit (`MAX_SCAN_FILES`) was reached.
+    pub truncated: bool,
+}
+
+/// Lists the photos and videos in `folder`, sorted by name. With `recursive`, subfolders are
+/// included too. The `Favorites` folder, hidden folders (starting with `.`) and system folders
+/// are never scanned, and links to folders are not followed (they could form loops).
+pub fn scan_folder(folder: &Path, recursive: bool) -> io::Result<Scan> {
+    scan_limited(folder, recursive, MAX_SCAN_FILES)
+}
+
+/// Like `scan_folder`, with an explicit cap on the number of files (so tests can exercise the limit).
+pub fn scan_limited(folder: &Path, recursive: bool, max_files: usize) -> io::Result<Scan> {
+    let mut items: Vec<Media> = Vec::new();
+    let mut truncated = false;
+    let mut pending: Vec<(PathBuf, usize)> = vec![(folder.to_path_buf(), 0)];
+
+    'scan: while let Some((dir, depth)) = pending.pop() {
+        let entries = match fs::read_dir(&dir) {
+            Ok(entries) => entries,
+            Err(e) if depth == 0 => return Err(e), // the folder you asked for must be readable
+            Err(_) => continue,                    // an unreadable subfolder is just skipped
         };
-        let meta = entry.metadata().ok();
-        let mut media = Media::new(path, kind);
-        media.size = meta.as_ref().map(|m| m.len()).unwrap_or(0);
-        media.modified = meta.and_then(|m| m.modified().ok());
-        items.push(media);
+        for entry in entries.flatten() {
+            let Ok(file_type) = entry.file_type() else {
+                continue;
+            };
+            let path = entry.path();
+
+            if file_type.is_dir() {
+                if recursive && depth < MAX_SCAN_DEPTH && !skip_dir(&path) {
+                    pending.push((path, depth + 1));
+                }
+                continue;
+            }
+            // Real files, and links to files.
+            if !(file_type.is_file() || (file_type.is_symlink() && path.is_file())) {
+                continue;
+            }
+            let Some(kind) = kind_of(&path) else {
+                continue;
+            };
+
+            if items.len() >= max_files {
+                truncated = true;
+                break 'scan;
+            }
+            let meta = entry.metadata().ok();
+            let mut media = Media::new(path, kind);
+            media.size = meta.as_ref().map(|m| m.len()).unwrap_or(0);
+            media.modified = meta.and_then(|m| m.modified().ok());
+            items.push(media);
+        }
     }
+
     sort_media(&mut items, Sort::NameAsc);
-    Ok(items)
+    Ok(Scan { items, truncated })
+}
+
+/// Folders that are never scanned: our own Favorites copies, hidden and system folders.
+fn skip_dir(path: &Path) -> bool {
+    let name = path
+        .file_name()
+        .map(|n| n.to_string_lossy())
+        .unwrap_or_default();
+    name.starts_with('.')
+        || name.starts_with('$')
+        || name.eq_ignore_ascii_case(FAV_DIR)
+        || name.eq_ignore_ascii_case("System Volume Information")
 }
 
 /// Sorts `items` in place. Ties (for example two files with the same size) fall back to name order.
@@ -155,8 +206,20 @@ fn file_name(m: &Media) -> Cow<'_, str> {
         .unwrap_or_default()
 }
 
+fn parent_name(m: &Media) -> Cow<'_, str> {
+    m.path
+        .parent()
+        .map(|p| p.to_string_lossy())
+        .unwrap_or_default()
+}
+
 fn compare(a: &Media, b: &Media, sort: Sort) -> Ordering {
-    let by_name = || natural_cmp(&file_name(a), &file_name(b)).then_with(|| a.path.cmp(&b.path));
+    // Files are grouped by folder first (only matters when subfolders are included), then by name.
+    let by_name = || {
+        natural_cmp(&parent_name(a), &parent_name(b))
+            .then_with(|| natural_cmp(&file_name(a), &file_name(b)))
+            .then_with(|| a.path.cmp(&b.path))
+    };
     match sort {
         Sort::NameAsc => by_name(),
         Sort::NameDesc => by_name().reverse(),
@@ -218,13 +281,28 @@ fn lower(c: char) -> char {
     c.to_lowercase().next().unwrap_or(c)
 }
 
-/// Reads the names of the files already in <folder>/Favorites (empty if the folder doesn't exist).
-pub fn load_favs(folder: &Path) -> HashSet<OsString> {
+/// Reads the files already in <folder>/Favorites, as paths relative to that folder:
+/// `photo.jpg`, or `Day1/photo.jpg` for the favorite of a file that lives in a subfolder.
+pub fn load_favs(folder: &Path) -> HashSet<PathBuf> {
+    let root = folder.join(FAV_DIR);
     let mut set = HashSet::new();
-    if let Ok(entries) = fs::read_dir(folder.join(FAV_DIR)) {
+    let mut pending: Vec<(PathBuf, usize)> = vec![(root.clone(), 0)];
+
+    while let Some((dir, depth)) = pending.pop() {
+        let Ok(entries) = fs::read_dir(&dir) else {
+            continue; // no Favorites folder yet, or it can't be read
+        };
         for entry in entries.flatten() {
-            if entry.path().is_file() {
-                set.insert(entry.file_name());
+            let Ok(file_type) = entry.file_type() else {
+                continue;
+            };
+            let path = entry.path();
+            if file_type.is_dir() && depth < MAX_SCAN_DEPTH {
+                pending.push((path, depth + 1));
+            } else if file_type.is_file()
+                && let Ok(rel) = path.strip_prefix(&root)
+            {
+                set.insert(rel.to_path_buf());
             }
         }
     }

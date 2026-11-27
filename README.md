@@ -52,6 +52,7 @@ Open a folder (or a single file), flip through your media, and mark favorites wi
 **Opening files**
 - Open a folder, or a single photo or video: its folder opens with that file selected.
 - From the command line, the **Open file** button, or by dragging a file or folder onto the window.
+- Enable **Subfolders** in the toolbar to include media in nested folders; `Favorites` folders are skipped.
 - Photos taken in portrait mode display upright (JPEG and WebP orientation data is applied).
 
 **Favorites**
@@ -334,7 +335,7 @@ Each preloaded photo uses roughly width × height × 4 bytes of memory (about 48
 - Animated GIFs show only their first frame.
 - Photos are decoded at up to `MAX_TEXTURE_SIDE` pixels, so very deep zoom on large photos can look soft.
 - Favorites added or removed outside the app aren't noticed until you reopen the folder.
-- Only files directly inside the opened folder are shown; subfolders are not scanned.
+- Subfolders are shown only when you tick Subfolders (up to 100,000 files, 12 levels deep)
 - Each file opened from Windows Explorer starts a new window.
 - "Date" sorting uses the file's last-modified time, not the date a photo was taken.
 - The window size is remembered, but not its position.

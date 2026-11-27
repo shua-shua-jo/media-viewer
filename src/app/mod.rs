@@ -17,6 +17,7 @@ mod persist;
 mod preload;
 mod shortcuts;
 mod slideshow;
+mod subfolders;
 #[cfg(test)]
 mod tests;
 mod toolbar;
@@ -25,7 +26,6 @@ mod video_view;
 mod view;
 
 use std::collections::{HashMap, HashSet};
-use std::ffi::OsString;
 use std::path::PathBuf;
 use std::time::Instant;
 
@@ -45,8 +45,8 @@ pub struct App {
     all: Vec<Media>,
     /// The subset currently shown (depends on `filter`). `index` points into this list.
     items: Vec<Media>,
-    /// File names present in the Favorites subfolder, kept in memory so we never hit the disk per frame.
-    favs: HashSet<OsString>,
+    /// Paths present in the Favorites subfolder, relative to it.
+    favs: HashSet<PathBuf>,
     filter: Filter,
     index: usize,
     status: String,
@@ -90,6 +90,7 @@ pub struct App {
     /// The photo the slideshow last showed; a different index means the user moved themselves.
     slideshow_seen_index: usize,
     undo_stack: Vec<Deleted>,
+    include_subfolders: bool,
 }
 
 impl App {
@@ -126,6 +127,7 @@ impl App {
             slideshow_next: Instant::now(),
             slideshow_seen_index: 0,
             undo_stack: Vec::new(),
+            include_subfolders: settings.include_subfolders,
         };
         match initial {
             Some(p) => app.open_path(p),
@@ -140,10 +142,17 @@ impl App {
     }
 
     fn load_folder(&mut self, folder: PathBuf) {
-        let items = match media::scan_folder(&folder) {
-            Ok(items) => {
-                self.status = format!("{} files loaded.", items.len());
-                items
+        let items = match media::scan_folder(&folder, self.include_subfolders) {
+            Ok(scan) => {
+                self.status = if scan.truncated {
+                    format!(
+                        "Showing the first {} files; there are more than that.",
+                        scan.items.len()
+                    )
+                } else {
+                    format!("{} files loaded.", scan.items.len())
+                };
+                scan.items
             }
             Err(e) => {
                 self.status = format!("Could not read folder: {e}");
@@ -168,16 +177,16 @@ impl App {
     fn apply_filter(&mut self, keep: Option<PathBuf>) {
         let filter = self.filter;
         let favs = &self.favs;
+        let folder = &self.folder;
         let visible: Vec<Media> = self
             .all
             .iter()
             .filter(|m| {
-                let is_fav = m
-                    .path
-                    .file_name()
-                    .map(|n| favs.contains(n))
-                    .unwrap_or(false);
-                filter.matches(is_fav)
+                let rel = match folder {
+                    Some(f) => m.path.strip_prefix(f).unwrap_or(&m.path),
+                    None => m.path.as_path(),
+                };
+                filter.matches(favs.contains(rel))
             })
             .cloned()
             .collect();

@@ -1,6 +1,5 @@
 //! Unit tests for navigation and filtering. Run with:  cargo test
 
-use std::ffi::OsString;
 use std::fs;
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -44,8 +43,8 @@ fn step_on_empty_list_does_nothing() {
 #[test]
 fn favorites_filter_shows_only_favorites_and_keeps_position() {
     let mut app = app_with(&["a.jpg", "b.jpg", "c.jpg"]);
-    app.favs.insert(OsString::from("b.jpg"));
-    app.favs.insert(OsString::from("c.jpg"));
+    app.favs.insert(PathBuf::from("b.jpg"));
+    app.favs.insert(PathBuf::from("c.jpg"));
     app.index = 2; // looking at c.jpg
 
     app.filter = Filter::Favorites;
@@ -58,7 +57,7 @@ fn favorites_filter_shows_only_favorites_and_keeps_position() {
 #[test]
 fn not_favorites_filter_hides_favorites() {
     let mut app = app_with(&["a.jpg", "b.jpg", "c.jpg"]);
-    app.favs.insert(OsString::from("b.jpg"));
+    app.favs.insert(PathBuf::from("b.jpg"));
 
     app.filter = Filter::NotFavorites;
     app.apply_filter(None);
@@ -82,15 +81,15 @@ fn filter_that_matches_nothing_leaves_an_empty_list_at_index_zero() {
 #[test]
 fn position_stays_near_the_same_spot_when_the_current_item_disappears() {
     let mut app = app_with(&["a.jpg", "b.jpg", "c.jpg", "d.jpg"]);
-    app.favs.insert(OsString::from("a.jpg"));
-    app.favs.insert(OsString::from("b.jpg"));
-    app.favs.insert(OsString::from("c.jpg"));
+    app.favs.insert(PathBuf::from("a.jpg"));
+    app.favs.insert(PathBuf::from("b.jpg"));
+    app.favs.insert(PathBuf::from("c.jpg"));
     app.filter = Filter::Favorites;
     app.apply_filter(None);
     app.index = 2; // c.jpg
 
     // "Un-favorite" c.jpg: it leaves the Favorites view, and we should land on the nearest valid spot.
-    app.favs.remove(&OsString::from("c.jpg"));
+    app.favs.remove(&PathBuf::from("c.jpg"));
     app.apply_filter(Some(PathBuf::from("c.jpg")));
 
     assert_eq!(app.items.len(), 2);
@@ -326,4 +325,47 @@ fn only_the_most_recent_deletions_are_remembered() {
     } else {
         assert!(app.undo_stack.is_empty());
     }
+}
+
+// ---- subfolders ----
+
+#[test]
+fn same_named_files_in_different_folders_have_separate_favorites() {
+    let root = PathBuf::from("root");
+    let mut app = App::new(None, egui::Context::default(), Settings::default());
+    app.folder = Some(root.clone());
+    app.all = vec![
+        Media::new(root.join("a").join("img.jpg"), Kind::Image),
+        Media::new(root.join("b").join("img.jpg"), Kind::Image),
+    ];
+    // Only the copy in folder "a" is a favorite.
+    app.favs.insert(PathBuf::from("a").join("img.jpg"));
+
+    app.filter = Filter::Favorites;
+    app.apply_filter(None);
+
+    assert_eq!(app.items.len(), 1);
+    assert_eq!(app.items[0].path, root.join("a").join("img.jpg"));
+    assert_eq!(
+        app.fav_path(&app.items[0]).unwrap(),
+        root.join("Favorites").join("a").join("img.jpg")
+    );
+}
+
+#[test]
+fn rescanning_keeps_the_current_file_selected() {
+    let dir = temp_dir("rescan");
+    fs::create_dir_all(dir.join("sub")).unwrap();
+    fs::write(dir.join("a.jpg"), b"x").unwrap();
+    fs::write(dir.join("sub").join("b.jpg"), b"x").unwrap();
+    let mut app = App::new(None, egui::Context::default(), Settings::default());
+    app.open_path(dir.clone());
+    assert_eq!(app.items.len(), 1);
+
+    app.include_subfolders = true;
+    app.rescan(Some(dir.join("a.jpg")));
+
+    assert_eq!(app.items.len(), 2);
+    assert_eq!(current_name(&app), "a.jpg");
+    fs::remove_dir_all(&dir).unwrap();
 }
