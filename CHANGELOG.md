@@ -6,9 +6,6 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
-### Added
-- Animated GIFs now play (looping), with pause on `Space`.
-
 ## [1.2.0] - 2026-MM-DD
 
 ### Added

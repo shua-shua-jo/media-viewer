@@ -1,7 +1,6 @@
 #![cfg_attr(all(not(debug_assertions), not(test)), windows_subsystem = "windows")]
 #![forbid(unsafe_code)]
 
-mod animation;
 mod app;
 mod config;
 mod loader;
