@@ -6,6 +6,18 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-MM-DD
+
+### Added
+- Sort options: name, date modified or size, in either direction. Name order is "natural" (`img2.jpg` before `img10.jpg`) and groups files by folder.
+- Remembers your last folder, filter, sort order, subfolder choice and window size between runs.
+- Fullscreen mode (`F11`, leave with `Esc`) and a slideshow (`S`) with a selectable interval. The slideshow shows photos only.
+- Undo delete (`Ctrl+Z` or the **Undo delete** button) restores recently deleted files from the Recycle Bin. Windows and Linux only.
+- Optional **Subfolders** mode shows photos and videos from subfolders too. Favorites of files in subfolders keep their subfolder inside `Favorites`.
+
+### Changed
+- Favorites are matched by path relative to the opened folder instead of by file name alone, so same-named files in different folders no longer share a favorite. Existing favorites keep working.
+
 ## [1.1.0] - 2026-11-23
 
 ### Added
@@ -40,7 +52,8 @@ First stable release.
 - Dependencies are audited for known vulnerabilities and licenses on every change and weekly.
 - The app contains no `unsafe` code and does not intentionally make network connections.
 
-[Unreleased]: https://github.com/shua-shua-jo/media-viewer/compare/v1.0.0...HEAD
-[1.0.0]: https://github.com/shua-shua-jo/media-viewer/releases/tag/v1.0.0
-[1.0.1]: https://github.com/shua-shua-jo/media-viewer/releases/tag/v1.0.1
+[Unreleased]: https://github.com/shua-shua-jo/media-viewer/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/shua-shua-jo/media-viewer/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/shua-shua-jo/media-viewer/releases/tag/v1.1.0
+[1.0.1]: https://github.com/shua-shua-jo/media-viewer/releases/tag/v1.0.1
+[1.0.0]: https://github.com/shua-shua-jo/media-viewer/releases/tag/v1.0.0

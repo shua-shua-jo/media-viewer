@@ -47,8 +47,12 @@ impl App {
         }
     }
 
-    /// Index of `path` in the visible list, matching by file name (exact first, then ignoring case).
-    fn position_of(&self, path: &Path) -> Option<usize> {
+    /// Index of `path` in the visible list: the exact path first, then the file name (ignoring case).
+    pub(super) fn position_of(&self, path: &Path) -> Option<usize> {
+        // With subfolders included, several files can share a name, so try the full path first.
+        if let Some(i) = self.items.iter().position(|m| m.path == path) {
+            return Some(i);
+        }
         let name = path.file_name()?;
         if let Some(i) = self
             .items

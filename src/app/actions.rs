@@ -8,19 +8,18 @@ use eframe::egui;
 use super::App;
 use crate::config::{FAV_DIR, MAX_ZOOM, MIN_ZOOM};
 use crate::media::{Kind, Media};
+use crate::recycle;
 
 impl App {
-    fn fav_path(&self, media: &Media) -> Option<PathBuf> {
+    /// Where the favorite copy of `media` lives: <folder>/Favorites/<path relative to the folder>.
+    /// (Files in subfolders keep their subfolder, so two photos with the same name can't collide.)
+    pub(super) fn fav_path(&self, media: &Media) -> Option<PathBuf> {
         let folder = self.folder.as_ref()?;
-        Some(folder.join(FAV_DIR).join(media.path.file_name()?))
+        Some(folder.join(FAV_DIR).join(self.rel_path(&media.path)))
     }
 
     pub(super) fn is_favorite(&self, media: &Media) -> bool {
-        media
-            .path
-            .file_name()
-            .map(|n| self.favs.contains(n))
-            .unwrap_or(false)
+        self.favs.contains(self.rel_path(&media.path))
     }
 
     /// Favoriting copies the file into <folder>/Favorites; unfavoriting removes that copy.
@@ -46,12 +45,11 @@ impl App {
 
         match result {
             Ok(msg) => {
-                if let Some(name) = media.path.file_name() {
-                    if was_fav {
-                        self.favs.remove(name);
-                    } else {
-                        self.favs.insert(name.to_os_string());
-                    }
+                let rel = self.rel_path(&media.path).to_path_buf();
+                if was_fav {
+                    self.favs.remove(&rel);
+                } else {
+                    self.favs.insert(rel);
                 }
                 self.status = msg;
                 // In a filtered view the item may now need to disappear from the list.
@@ -67,8 +65,9 @@ impl App {
         let Some(media) = self.items.get(self.index).cloned() else {
             return;
         };
-        match trash::delete(&media.path) {
-            Ok(()) => {
+        match recycle::delete(&media.path) {
+            Ok(deleted) => {
+                self.remember_deleted(deleted);
                 self.rotations.remove(&media.path);
                 self.all.retain(|m| m.path != media.path);
                 self.items.remove(self.index);
@@ -76,7 +75,11 @@ impl App {
                     self.index = self.items.len().saturating_sub(1);
                 }
                 self.shown = None;
-                self.status = "Moved to recycle bin.".into();
+                self.status = if recycle::UNDO_SUPPORTED {
+                    "Moved to recycle bin. Press Ctrl+Z to undo.".into()
+                } else {
+                    "Moved to recycle bin.".into()
+                };
             }
             Err(e) => self.status = format!("Delete failed: {e}"),
         }

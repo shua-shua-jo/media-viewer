@@ -1,10 +1,11 @@
-//! The top toolbar: open folder, filter, navigation, jump-to-number, favorite, rotate, zoom, delete.
+//! The top toolbar: open folder, filter, sort, navigation, jump-to-number, favorite, rotate, zoom, delete.
 
 use eframe::egui;
 
 use super::App;
-use crate::config::{IMAGE_EXTS, VIDEO_EXTS};
-use crate::media::{Filter, Kind, Media};
+use crate::config::{IMAGE_EXTS, SLIDESHOW_CHOICES, VIDEO_EXTS};
+use crate::media::{Filter, Kind, Media, Sort};
+use crate::recycle;
 use crate::widgets::{Arrow, arrow_button, heart_button};
 
 impl App {
@@ -21,6 +22,14 @@ impl App {
                 {
                     self.load_folder(dir);
                 }
+                ui.separator();
+                let subfolders_before = self.include_subfolders;
+                ui.checkbox(&mut self.include_subfolders, "Subfolders")
+                    .on_hover_text("Also show photos and videos in subfolders");
+                if self.include_subfolders != subfolders_before {
+                    self.rescan(current.as_ref().map(|m| m.path.clone()));
+                }
+                ui.separator();
                 if ui.button("Open file").clicked() {
                     let exts: Vec<&str> = IMAGE_EXTS
                         .iter()
@@ -41,6 +50,18 @@ impl App {
                 ui.selectable_value(&mut self.filter, Filter::NotFavorites, "Not favorites");
                 if self.filter != before {
                     self.apply_filter(current.as_ref().map(|m| m.path.clone()));
+                }
+                ui.separator();
+                let sort_before = self.sort;
+                egui::ComboBox::from_id_salt("sort")
+                    .selected_text(self.sort.label())
+                    .show_ui(ui, |ui| {
+                        for s in Sort::ALL {
+                            ui.selectable_value(&mut self.sort, s, s.label());
+                        }
+                    });
+                if self.sort != sort_before {
+                    self.resort(current.as_ref().map(|m| m.path.clone()));
                 }
                 ui.separator();
                 if arrow_button(ui, Arrow::Left, "Previous (←)").clicked() {
@@ -106,11 +127,48 @@ impl App {
                     self.rotate_current(true);
                 }
                 ui.separator();
+                if ui.button("Fullscreen (F11)").clicked() {
+                    self.toggle_fullscreen(ui.ctx());
+                }
+                let slideshow_label = if self.slideshow {
+                    "Stop slideshow (S)"
+                } else {
+                    "Slideshow (S)"
+                };
+                if ui.button(slideshow_label).clicked() {
+                    self.toggle_slideshow();
+                }
+                let secs_before = self.slideshow_secs;
+                egui::ComboBox::from_id_salt("slideshow_secs")
+                    .selected_text(format!("{} s", self.slideshow_secs))
+                    .show_ui(ui, |ui| {
+                        for secs in SLIDESHOW_CHOICES {
+                            ui.selectable_value(
+                                &mut self.slideshow_secs,
+                                secs,
+                                format!("{secs} s"),
+                            );
+                        }
+                    });
+                if self.slideshow_secs != secs_before {
+                    self.restart_slideshow_timer();
+                }
+                ui.separator();
                 if ui
                     .add_enabled(current.is_some(), egui::Button::new("🗑 Delete (Del)"))
                     .clicked()
                 {
                     self.delete_current();
+                }
+                ui.separator();
+                if ui
+                    .add_enabled(
+                        recycle::UNDO_SUPPORTED && !self.undo_stack.is_empty(),
+                        egui::Button::new("Undo delete (Ctrl+Z)"),
+                    )
+                    .clicked()
+                {
+                    self.undo_delete();
                 }
             });
         });

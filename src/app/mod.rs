@@ -11,24 +11,32 @@
 //! and give it its own `impl App { ... }` block.
 
 mod actions;
+mod fullscreen;
 mod open;
+mod persist;
 mod preload;
 mod shortcuts;
+mod slideshow;
+mod subfolders;
 #[cfg(test)]
 mod tests;
 mod toolbar;
+mod undo;
 mod video_view;
 mod view;
 
 use std::collections::{HashMap, HashSet};
-use std::ffi::OsString;
 use std::path::PathBuf;
+use std::time::Instant;
 
 use eframe::egui;
 
+use crate::config::SLIDESHOW_DEFAULT_SECS;
 use crate::config::WORKERS;
 use crate::loader::{Key, Loader};
-use crate::media::{self, Filter, Media};
+use crate::media::{self, Filter, Media, Sort};
+use crate::recycle::Deleted;
+use crate::settings::Settings;
 use crate::video::Player;
 
 pub struct App {
@@ -37,8 +45,8 @@ pub struct App {
     all: Vec<Media>,
     /// The subset currently shown (depends on `filter`). `index` points into this list.
     items: Vec<Media>,
-    /// File names present in the Favorites subfolder, kept in memory so we never hit the disk per frame.
-    favs: HashSet<OsString>,
+    /// Paths present in the Favorites subfolder, relative to it.
+    favs: HashSet<PathBuf>,
     filter: Filter,
     index: usize,
     status: String,
@@ -69,16 +77,30 @@ pub struct App {
     player: Option<Player>,
     /// A video the player failed to start for, so we don't retry every frame.
     player_failed: Option<PathBuf>,
+    /// The current sort order.
+    sort: Sort,
+    /// The settings as last written to disk, to detect changes.
+    saved_settings: Settings,
+    last_settings_save: Instant,
+    fullscreen: bool,
+    fullscreen_hint_until: Option<Instant>,
+    slideshow: bool,
+    slideshow_secs: u32,
+    slideshow_next: Instant,
+    /// The photo the slideshow last showed; a different index means the user moved themselves.
+    slideshow_seen_index: usize,
+    undo_stack: Vec<Deleted>,
+    include_subfolders: bool,
 }
 
 impl App {
-    pub fn new(initial: Option<PathBuf>, ctx: egui::Context) -> Self {
+    pub fn new(initial: Option<PathBuf>, ctx: egui::Context, settings: Settings) -> Self {
         let mut app = App {
             folder: None,
             all: Vec::new(),
             items: Vec::new(),
             favs: HashSet::new(),
-            filter: Filter::All,
+            filter: settings.filter,
             index: 0,
             status: "Open a folder to begin.".into(),
             loader: Loader::new(ctx, WORKERS),
@@ -95,18 +117,42 @@ impl App {
             goto_focused: false,
             player: None,
             player_failed: None,
+            sort: settings.sort,
+            saved_settings: settings.clone(),
+            last_settings_save: Instant::now(),
+            fullscreen: false,
+            fullscreen_hint_until: None,
+            slideshow: false,
+            slideshow_secs: SLIDESHOW_DEFAULT_SECS,
+            slideshow_next: Instant::now(),
+            slideshow_seen_index: 0,
+            undo_stack: Vec::new(),
+            include_subfolders: settings.include_subfolders,
         };
-        if let Some(p) = initial {
-            app.open_path(p);
+        match initial {
+            Some(p) => app.open_path(p),
+            None => {
+                // Reopen the folder from last time, if it still exists.
+                if let Some(folder) = settings.last_folder.filter(|f| f.is_dir()) {
+                    app.load_folder(folder);
+                }
+            }
         }
         app
     }
 
     fn load_folder(&mut self, folder: PathBuf) {
-        let items = match media::scan_folder(&folder) {
-            Ok(items) => {
-                self.status = format!("{} files loaded.", items.len());
-                items
+        let items = match media::scan_folder(&folder, self.include_subfolders) {
+            Ok(scan) => {
+                self.status = if scan.truncated {
+                    format!(
+                        "Showing the first {} files; there are more than that.",
+                        scan.items.len()
+                    )
+                } else {
+                    format!("{} files loaded.", scan.items.len())
+                };
+                scan.items
             }
             Err(e) => {
                 self.status = format!("Could not read folder: {e}");
@@ -114,6 +160,7 @@ impl App {
             }
         };
         self.all = items;
+        media::sort_media(&mut self.all, self.sort);
         self.favs = media::load_favs(&folder);
         self.folder = Some(folder);
         self.rotations.clear();
@@ -130,16 +177,16 @@ impl App {
     fn apply_filter(&mut self, keep: Option<PathBuf>) {
         let filter = self.filter;
         let favs = &self.favs;
+        let folder = &self.folder;
         let visible: Vec<Media> = self
             .all
             .iter()
             .filter(|m| {
-                let is_fav = m
-                    .path
-                    .file_name()
-                    .map(|n| favs.contains(n))
-                    .unwrap_or(false);
-                filter.matches(is_fav)
+                let rel = match folder {
+                    Some(f) => m.path.strip_prefix(f).unwrap_or(&m.path),
+                    None => m.path.as_path(),
+                };
+                filter.matches(favs.contains(rel))
             })
             .cloned()
             .collect();
@@ -150,6 +197,12 @@ impl App {
             .unwrap_or(fallback);
         self.items = visible;
         self.index = new_index;
+    }
+
+    /// Re-sorts the file list after the sort order changes, keeping `keep` selected if possible.
+    fn resort(&mut self, keep: Option<PathBuf>) {
+        media::sort_media(&mut self.all, self.sort);
+        self.apply_filter(keep);
     }
 
     /// Moves forward/backward through the visible list, wrapping around at the ends.

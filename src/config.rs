@@ -44,3 +44,11 @@ pub const VIDEO_AUTOPLAY: bool = true;
 /// How many decoded frames may wait in memory (each about 8 MB at 1080p).
 #[allow(dead_code)]
 pub const VIDEO_QUEUE_LEN: usize = 3;
+/// Choices in the slideshow interval menu (seconds), and the starting value.
+pub const SLIDESHOW_CHOICES: [u32; 5] = [2, 3, 5, 10, 30];
+pub const SLIDESHOW_DEFAULT_SECS: u32 = 3;
+/// How many deleted files can be undone.
+pub const UNDO_LIMIT: usize = 5;
+/// Subfolder scanning limits: how deep to go, and the most files to list.
+pub const MAX_SCAN_DEPTH: usize = 12;
+pub const MAX_SCAN_FILES: usize = 100_000;
