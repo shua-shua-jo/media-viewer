@@ -22,6 +22,14 @@ impl App {
                 {
                     self.load_folder(dir);
                 }
+                ui.separator();
+                let subfolders_before = self.include_subfolders;
+                ui.checkbox(&mut self.include_subfolders, "Subfolders")
+                    .on_hover_text("Also show photos and videos in subfolders");
+                if self.include_subfolders != subfolders_before {
+                    self.rescan(current.as_ref().map(|m| m.path.clone()));
+                }
+                ui.separator();
                 if ui.button("Open file").clicked() {
                     let exts: Vec<&str> = IMAGE_EXTS
                         .iter()

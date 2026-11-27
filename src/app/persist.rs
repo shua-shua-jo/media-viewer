@@ -54,6 +54,7 @@ impl App {
             last_folder: self.folder.clone(),
             filter: self.filter,
             sort: self.sort,
+            include_subfolders: self.include_subfolders,
             window_size,
             // While fullscreen the "maximized" flag isn't meaningful; keep what was saved before.
             maximized: if fullscreen {

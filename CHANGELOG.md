@@ -11,6 +11,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - Remembers the last folder, filter, sort order, and window size between runs.
 - Fullscreen mode (F11, exit with Esc) and a slideshow (S) with a selectable interval; the slideshow skips videos.
 - Undo delete (Ctrl+Z or the Undo delete button) restores the most recently deleted files from the Recycle Bin. Windows and Linux only.
+- Optional Subfolders mode shows photos and videos from subfolders too (name sort groups by folder). Favorites of files in subfolders keep their subfolder inside `Favorites`.
 
 ## [1.1.0] - 2026-11-23
 

@@ -24,6 +24,8 @@ pub struct Settings {
     /// Window size in points (not saved while maximized or fullscreen).
     pub window_size: Option<(u32, u32)>,
     pub maximized: bool,
+    /// Also show photos and videos found in subfolders.
+    pub include_subfolders: bool,
 }
 
 impl Default for Settings {
@@ -34,6 +36,7 @@ impl Default for Settings {
             sort: Sort::NameAsc,
             window_size: None,
             maximized: false,
+            include_subfolders: false,
         }
     }
 }
@@ -83,6 +86,7 @@ impl Settings {
             out.push_str(&format!("window_width={w}\nwindow_height={h}\n"));
         }
         out.push_str(&format!("maximized={}\n", self.maximized));
+        out.push_str(&format!("subfolders={}\n", self.include_subfolders));
         out
     }
 }
@@ -117,6 +121,7 @@ fn parse(text: &str) -> Settings {
             "window_width" => width = value.trim().parse::<u32>().ok(),
             "window_height" => height = value.trim().parse::<u32>().ok(),
             "maximized" => s.maximized = value.trim() == "true",
+            "subfolders" => s.include_subfolders = value.trim() == "true",
             _ => {} // unknown keys (for example from a newer version) are ignored
         }
     }
@@ -203,6 +208,7 @@ mod tests {
             sort: Sort::DateDesc,
             window_size: Some((1100, 720)),
             maximized: true,
+            include_subfolders: true,
         }
     }
 

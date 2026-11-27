@@ -49,3 +49,6 @@ pub const SLIDESHOW_CHOICES: [u32; 5] = [2, 3, 5, 10, 30];
 pub const SLIDESHOW_DEFAULT_SECS: u32 = 3;
 /// How many deleted files can be undone.
 pub const UNDO_LIMIT: usize = 5;
+/// Subfolder scanning limits: how deep to go, and the most files to list.
+pub const MAX_SCAN_DEPTH: usize = 12;
+pub const MAX_SCAN_FILES: usize = 100_000;

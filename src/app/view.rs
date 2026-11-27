@@ -67,9 +67,8 @@ impl App {
         egui::Panel::bottom("status").show(ui, |ui| {
             let name = current
                 .as_ref()
-                .and_then(|m| m.path.file_name())
-                .and_then(|n| n.to_str())
-                .unwrap_or("");
+                .map(|m| self.display_name(m))
+                .unwrap_or_default();
 
             let loading_note = if loading { "    Loading…" } else { "" };
 
