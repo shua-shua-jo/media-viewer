@@ -75,8 +75,12 @@ impl App {
         if zoom_fit {
             self.reset_zoom();
         }
-        if space && let Some(p) = &mut self.player {
-            p.toggle_pause();
+        if space {
+            if let Some(p) = &mut self.player {
+                p.toggle_pause();
+            } else if let Some(a) = &mut self.anim {
+                a.toggle_pause();
+            }
         }
         if fullscreen {
             self.toggle_fullscreen(ctx);

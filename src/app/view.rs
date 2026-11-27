@@ -46,6 +46,7 @@ impl eframe::App for App {
 
         // Background loading: pick up finished images, then (re)plan what to keep and preload.
         let img = self.sync_images(&ctx, &current);
+        self.update_animation(&ctx, &current);
 
         if !self.fullscreen {
             self.show_toolbar(ui, &current, is_fav);
@@ -124,7 +125,8 @@ impl App {
             }
             Some(m) if m.kind == Kind::Image => {
                 // The current image if ready; otherwise the previous one (unless this one failed).
-                let tex = img.tex.as_ref().or(if img.failed {
+                let anim_tex = self.anim.as_ref().and_then(|a| a.texture());
+                let tex = anim_tex.or(img.tex.as_ref()).or(if img.failed {
                     None
                 } else {
                     self.shown.as_ref()

@@ -52,3 +52,5 @@ pub const UNDO_LIMIT: usize = 5;
 /// Subfolder scanning limits: how deep to go, and the most files to list.
 pub const MAX_SCAN_DEPTH: usize = 12;
 pub const MAX_SCAN_FILES: usize = 100_000;
+/// How many gif frames may wait in memory (each about 8 MB at 1080p). The first frame is always shown, so this is just for the next few frames.
+pub const GIF_QUEUE_LEN: usize = 3;
