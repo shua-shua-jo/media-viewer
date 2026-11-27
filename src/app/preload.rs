@@ -58,7 +58,7 @@ impl App {
     }
 
     /// The cache key for a file: its path plus its current view-only rotation.
-    fn key_for(&self, media: &Media) -> Key {
+    pub(super) fn key_for(&self, media: &Media) -> Key {
         (
             media.path.clone(),
             self.rotations.get(&media.path).copied().unwrap_or(0),
