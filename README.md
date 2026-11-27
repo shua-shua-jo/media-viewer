@@ -45,7 +45,6 @@ Open a folder (or a single file), flip through your media, and mark favorites wi
 - Opens any folder and shows the photos and videos directly inside it (sorted by name by default).
 - Sort by name, date modified, or size, in either direction, from the toolbar. Name order is "natural": `img2.jpg` comes before `img10.jpg`.
 - Photos: JPG, JPEG, PNG, GIF, WebP, BMP.
-- Animated GIFs
 - Videos: MP4, MOV, MKV, AVI, WebM, M4V. Videos open in your default player; builds made with the optional `video` feature play them inside the app ([details below](#optional-embedded-video-playback)).
 - Previous / next buttons, arrow keys, and a number box to jump straight to any item.
 - Remembers your last folder, filter, sort order and window size between runs ([where it's saved](#saved-settings)).
@@ -183,7 +182,7 @@ Delete the file to reset everything to the defaults. Nothing is sent anywhere.
 | `Delete` | Move to Recycle Bin / Trash |
 | `+` / `-` | Zoom in / out |
 | `0` | Reset zoom to fit |
-| `Space` | Play / pause (videos in builds with video, and animated GIFsy) |
+| `Space` | Play / pause (embedded video builds only) |
 | `F11` | Toggle fullscreen mode |
 | `Esc` | Exit fullscreen |
 | `S` | Start / stop slideshow |
@@ -289,7 +288,6 @@ media-viewer/
     ├── widgets.rs            zoomable image area, heart and arrow buttons
     ├── settings.rs           remembered settings (loading, saving, file format)
     ├── tests.rs              unit tests for scanning, sorting and filter rules
-    ├── animation.rs          decodes GIF frame by frame
     ├── app/
     │   ├── mod.rs            app state, opening folders, filtering
     │   ├── preload.rs        texture cache and preloading
@@ -302,8 +300,7 @@ media-viewer/
     │   ├── persist.rs        saves settings while the app runs
     │   ├── tests.rs          unit tests for navigation, filtering and opening
     │   ├── fullscreen.rs     fullscreen window management and toggle actions
-    │   ├── slideshow.rs      automatic photo navigation and slideshow controls
-    │   └── gif_view.rs       keeps an animated-GIF player running
+    │   └── slideshow.rs      automatic photo navigation and slideshow controls
     └── video/                optional embedded video player
         ├── mod.rs            picks the real player or the stand-in
         ├── player.rs         FFmpeg decoding and playback (feature `video`)
@@ -319,30 +316,23 @@ Build-time settings live in `src/config.rs`. Change a value and rebuild. Your pe
 | Setting | Default | What it does |
 |---|---|---|
 | `FAV_DIR` | `"Favorites"` | Name of the favorites subfolder |
-| `IMAGE_EXTS` | `["jpg", "jpeg", "png", "gif", "webp", "bmp"]` | Supported image file extensions |
-| `VIDEO_EXTS` | `["mp4", "mov", "mkv", "avi", "webm", "m4v"]` | Supported video file extensions |
-| `MAX_TEXTURE_SIDE` | `4096` | Images larger than this in either dimension are downscaled before upload to the GPU |
+| `MAX_TEXTURE_SIDE` | `4096` | Photos larger than this are downscaled for display |
 | `PRELOAD_AHEAD` / `PRELOAD_BEHIND` | `2` / `1` | How many neighbors are decoded in advance |
 | `WORKERS` | `2` | Background decoder threads |
 | `MIN_ZOOM` / `MAX_ZOOM` | `0.2` / `8.0` | Zoom range (relative to fit-to-window) |
-| `ZOOM_STEP` | `1.25` | Multiplier used by zoom buttons and the `+` / `-` keys |
 | `SCROLL_ZOOM_SPEED` | `0.002` | Mouse wheel zoom speed |
-| `HEART_RED` | `rgb(255, 120, 140)` | Light red color used for a favorited heart |
-| `MIN_WINDOW_WIDTH` / `MIN_WINDOW_HEIGHT` | `600.0` / `400.0` | Smallest window size in points |
+| `HEART_RED` | light red | Color of a favorited heart |
+| `MIN_WINDOW_WIDTH` / `MIN_WINDOW_HEIGHT` | `600` / `400` | Smallest window size |
 | `VIDEO_MAX_WIDTH` | `1920` | Videos wider than this are scaled down while decoding |
 | `VIDEO_AUTOPLAY` | `true` | Start playing as soon as a video opens |
 | `VIDEO_QUEUE_LEN` | `3` | Decoded frames kept waiting in memory |
-| `SLIDESHOW_CHOICES` | `[2, 3, 5, 10, 30]` | Available slideshow intervals, in seconds |
-| `SLIDESHOW_DEFAULT_SECS` | `3` | Default slideshow interval, in seconds |
-| `UNDO_LIMIT` | `5` | Maximum number of deleted files that can be undone |
-| `MAX_SCAN_DEPTH` / `MAX_SCAN_FILES` | `12` / `100000` | Maximum subfolder depth and number of files listed |
-| `GIF_QUEUE_LEN` | `3` | Decoded GIF frames kept waiting in memory after the first frame |
 
 Each preloaded photo uses roughly width × height × 4 bytes of memory (about 48 MB for a 12-megapixel photo). Lower the preload numbers if memory matters more than speed.
 
 ## Known limitations
 
 - Videos open in your default player unless the app was built with the optional `video` feature, which is picture only (no audio yet).
+- Animated GIFs show only their first frame.
 - Photos are decoded at up to `MAX_TEXTURE_SIDE` pixels, so very deep zoom on large photos can look soft.
 - Favorites added or removed outside the app aren't noticed until you reopen the folder.
 - Subfolders are shown only when you tick Subfolders (up to 100,000 files, 12 levels deep)
