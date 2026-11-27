@@ -161,14 +161,15 @@ impl App {
                     self.delete_current();
                 }
                 ui.separator();
-                ui.add_enabled_ui(
-                    recycle::UNDO_SUPPORTED && !self.undo_stack.is_empty(),
-                    |ui| {
-                        if ui.button("Undo delete (Ctrl+Z)").clicked() {
-                            self.undo_delete();
-                        }
-                    },
-                );
+                if ui
+                    .add_enabled(
+                        recycle::UNDO_SUPPORTED && !self.undo_stack.is_empty(),
+                        egui::Button::new("Undo delete (Ctrl+Z)"),
+                    )
+                    .clicked()
+                {
+                    self.undo_delete();
+                }
             });
         });
     }
