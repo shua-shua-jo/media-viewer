@@ -45,15 +45,15 @@ Open a folder (or a single file), flip through your media, and mark favorites wi
 - Opens any folder and shows the photos and videos directly inside it (sorted by name by default).
 - Sort by name, date modified, or size, in either direction, from the toolbar. Name order is "natural": `img2.jpg` comes before `img10.jpg`.
 - Photos: JPG, JPEG, PNG, GIF, WebP, BMP.
-- Animated GIFs
+- Animated GIFs play and loop. Press `Space` to pause.
 - Videos: MP4, MOV, MKV, AVI, WebM, M4V. Videos open in your default player; builds made with the optional `video` feature play them inside the app ([details below](#optional-embedded-video-playback)).
 - Previous / next buttons, arrow keys, and a number box to jump straight to any item.
-- Remembers your last folder, filter, sort order and window size between runs ([where it's saved](#saved-settings)).
+- Remembers your last folder, filter, sort order, subfolder setting and window size between runs ([where it's saved](#saved-settings)).
 
 **Opening files**
 - Open a folder, or a single photo or video: its folder opens with that file selected.
-- From the command line, the **Open file** button, or by dragging a file or folder onto the window.
-- Enable **Subfolders** in the toolbar to include media in nested folders; `Favorites` folders are skipped.
+- From the command line, **File → Open file**, or by dragging a file or folder onto the window.
+- Tick **View → Include subfolders** to include media in nested folders. `Favorites` and hidden folders are skipped.
 - Photos taken in portrait mode display upright (JPEG and WebP orientation data is applied).
 
 **Favorites**
@@ -72,16 +72,19 @@ Open a folder (or a single file), flip through your media, and mark favorites wi
 - Each photo remembers its rotation while the app is open.
 
 **Fullscreen and Slideshow**
-- Switch to fullscreen mode to enjoy photos without window borders or distractions. Toggle fullscreen using the toolbar button or `F11`.
+- Switch to fullscreen mode to enjoy photos without window borders or distractions. Toggle fullscreen from the **View** menu or with `F11`.
 - Start a slideshow to automatically cycle through photos in the current folder or filtered view.
 - Videos are automatically skipped during slideshows.
-- Press `S` to start or stop the slideshow.
+- Press `S` (or use **View → Start slideshow**) to start or stop the slideshow. Choose the interval under **View → Slideshow interval**.
 - Press `Esc` to exit fullscreen mode.
 
 **Delete**
 - Sends the file to the Recycle Bin / Trash, so it can be recovered.
 - A copy in `Favorites`, if there is one, is left alone.
-- You can undo the deletion of up to 5 photos or videos.
+- Undo with `Ctrl+Z` or the **Undo** button, for up to 5 deleted files (Windows and Linux only).
+
+**Help**
+- **File → Keybinds** (or `F1`) shows every keyboard shortcut.
 
 **Performance**
 - Images are decoded on background threads, and the next few photos are preloaded, so moving between photos feels instant.
@@ -152,7 +155,7 @@ gh attestation verify <downloaded-file> --repo shua-shua-jo/media-viewer
 
 ## Usage
 
-Start the app and click **Open folder** or **Open file**, drag a file or folder onto the window, or pass a path on the command line:
+Start the app and use **File → Open folder** or **File → Open file**, drag a file or folder onto the window, or pass a path on the command line:
 
 ```text
 media-viewer photo.jpg           # opens the photo's folder, starting at photo.jpg
@@ -163,7 +166,7 @@ media-viewer "D:\Photos"         # opens a folder
 
 ### Saved settings
 
-With no path given, the app reopens the folder you used last time. It remembers your last folder, filter, sort order and window size (not the window position) in a small text file:
+With no path given, the app reopens the folder you used last time. It remembers your last folder, filter, sort order, subfolder setting and window size (not the window position) in a small text file:
 
 | OS | File |
 |---|---|
@@ -183,11 +186,12 @@ Delete the file to reset everything to the defaults. Nothing is sent anywhere.
 | `Delete` | Move to Recycle Bin / Trash |
 | `+` / `-` | Zoom in / out |
 | `0` | Reset zoom to fit |
-| `Space` | Play / pause (videos in builds with video, and animated GIFsy) |
+| `Space` | Play / pause (videos in builds with video, and animated GIFs) |
 | `F11` | Toggle fullscreen mode |
-| `Esc` | Exit fullscreen |
+| `Esc` | Close the Keybinds window, or exit fullscreen |
 | `S` | Start / stop slideshow |
-| `Ctrl+Z` | Undo delete |
+| `Ctrl+Z` | Undo delete (Windows and Linux) |
+| `F1` | Show / hide the Keybinds window |
 
 Shortcuts are paused while you're typing in the number box.
 
@@ -277,6 +281,7 @@ media-viewer/
 ├── assets/
 │   └── icon.png              window icon (required)
 ├── docs/
+│   ├── banner.png            header image
 │   └── screenshots/          images used in this README
 ├── .github/
 │   ├── workflows/            CI, security audit and release automation
@@ -288,8 +293,9 @@ media-viewer/
     ├── loader.rs             background image decoding
     ├── widgets.rs            zoomable image area, heart and arrow buttons
     ├── settings.rs           remembered settings (loading, saving, file format)
+    ├── recycle.rs            Recycle Bin: delete and restore
     ├── tests.rs              unit tests for scanning, sorting and filter rules
-    ├── animation.rs          decodes GIF frame by frame
+    ├── animation.rs          animated GIF player
     ├── app/
     │   ├── mod.rs            app state, opening folders, filtering
     │   ├── preload.rs        texture cache and preloading
@@ -299,6 +305,8 @@ media-viewer/
     │   ├── view.rs           per-frame UI, status bar, image area
     │   ├── video_view.rs     shows the current video (embedded player or fallback)
     │   ├── open.rs           opening a file or folder, drag and drop
+    │   ├── subfolders.rs     rescanning with subfolders, relative paths
+    │   ├── undo.rs           undo delete
     │   ├── persist.rs        saves settings while the app runs
     │   ├── tests.rs          unit tests for navigation, filtering and opening
     │   ├── fullscreen.rs     fullscreen window management and toggle actions
@@ -336,7 +344,7 @@ Build-time settings live in `src/config.rs`. Change a value and rebuild. Your pe
 | `SLIDESHOW_DEFAULT_SECS` | `3` | Default slideshow interval, in seconds |
 | `UNDO_LIMIT` | `5` | Maximum number of deleted files that can be undone |
 | `MAX_SCAN_DEPTH` / `MAX_SCAN_FILES` | `12` / `100000` | Maximum subfolder depth and number of files listed |
-| `GIF_QUEUE_LEN` | `3` | Decoded GIF frames kept waiting in memory after the first frame |
+| `GIF_QUEUE_LEN` | `3` | Decoded GIF frames kept waiting in memory |
 
 Each preloaded photo uses roughly width × height × 4 bytes of memory (about 48 MB for a 12-megapixel photo). Lower the preload numbers if memory matters more than speed.
 
@@ -345,12 +353,14 @@ Each preloaded photo uses roughly width × height × 4 bytes of memory (about 48
 - Videos open in your default player unless the app was built with the optional `video` feature, which is picture only (no audio yet).
 - Photos are decoded at up to `MAX_TEXTURE_SIDE` pixels, so very deep zoom on large photos can look soft.
 - Favorites added or removed outside the app aren't noticed until you reopen the folder.
-- Subfolders are shown only when you tick Subfolders (up to 100,000 files, 12 levels deep)
+- Subfolders are shown only when you tick **View → Include subfolders** (up to 100,000 files, 12 levels deep). Large scans can briefly freeze the window.
+- Favorites are tracked per opened folder: a favorite made while browsing a subfolder directly lives in that subfolder's own `Favorites` folder.
 - Each file opened from Windows Explorer starts a new window.
 - "Date" sorting uses the file's last-modified time, not the date a photo was taken.
 - The window size is remembered, but not its position.
 - Slideshows display photos only; video files are skipped.
-- Undo delete isn't available on macOS
+- Undo delete isn't available on macOS.
+- The slideshow interval isn't remembered between runs.
 
 ## Security and changelog
 

@@ -7,7 +7,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 ## [Unreleased]
 
 ### Added
-- Animated GIFs now play (looping), with pause on `Space`.
+- Animated GIFs now play (looping). Press `Space` to pause and resume.
+- **Keybinds** window listing all keyboard shortcuts (File menu or `F1`).
+
+### Changed
+- Toolbar reorganized to be less crowded: the **File** menu holds the open commands and Keybinds, the **View** menu holds subfolders, fullscreen and slideshow, and the filter and sort order are dropdowns that always show their current choice.
 
 ## [1.2.0] - 2026-MM-DD
 

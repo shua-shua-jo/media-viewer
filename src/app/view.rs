@@ -8,6 +8,22 @@ use crate::config::{MAX_ZOOM, MIN_ZOOM, ZOOM_STEP};
 use crate::media::{Kind, Media};
 use crate::widgets::draw_zoomable;
 
+const KEYBINDS: &[(&str, &str)] = &[
+    ("← / →", "Previous / next item"),
+    ("F", "Add / remove favorite"),
+    ("L / R", "Rotate view left / right"),
+    ("Delete", "Move item to Recycle Bin / Trash"),
+    ("Ctrl+Z", "Undo delete (Windows and Linux only)"),
+    ("+ / =", "Zoom in"),
+    ("-", "Zoom out"),
+    ("0", "Fit image to window"),
+    ("Space", "Play / pause video or animated GIF"),
+    ("S", "Start / stop slideshow"),
+    ("F11", "Toggle fullscreen"),
+    ("Esc", "Close this window, or exit fullscreen"),
+    ("F1", "Show / hide this window"),
+];
+
 impl eframe::App for App {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         let ctx = ui.ctx().clone();
@@ -48,6 +64,7 @@ impl eframe::App for App {
         let img = self.sync_images(&ctx, &current);
         self.update_animation(&ctx, &current);
 
+        self.show_keybinds_window(&ctx);
         if !self.fullscreen {
             self.show_toolbar(ui, &current, is_fav);
             self.show_status_bar(ui, &current, img.loading);
@@ -64,6 +81,36 @@ impl eframe::App for App {
 }
 
 impl App {
+    fn show_keybinds_window(&mut self, ctx: &egui::Context) {
+        egui::Window::new("Keybinds")
+            .open(&mut self.show_keybinds)
+            .order(egui::Order::Foreground)
+            .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
+            .collapsible(false)
+            .resizable(false)
+            .show(ctx, |ui| {
+                egui::ScrollArea::vertical()
+                    .max_height(280.0)
+                    .show(ui, |ui| {
+                        egui::Grid::new("keybinds_grid")
+                            .num_columns(2)
+                            .spacing([24.0, 6.0])
+                            .striped(true)
+                            .show(ui, |ui| {
+                                for (key, action) in KEYBINDS {
+                                    ui.label(egui::RichText::new(*key).strong());
+                                    ui.label(*action);
+                                    ui.end_row();
+                                }
+                            });
+                    });
+                ui.separator();
+                ui.label("Mouse: scroll or pinch to zoom, drag to pan, double-click to fit.");
+                ui.label("Drag a file or folder onto the window to open it.");
+                ui.label("Shortcuts are ignored while the jump-to-number box is focused.");
+            });
+    }
+
     fn show_status_bar(&mut self, ui: &mut egui::Ui, current: &Option<Media>, loading: bool) {
         egui::Panel::bottom("status").show(ui, |ui| {
             let name = current
@@ -71,7 +118,7 @@ impl App {
                 .map(|m| self.display_name(m))
                 .unwrap_or_default();
 
-            let loading_note = if loading { "    Loading…" } else { "" };
+            let loading_note = if loading { "  Loading…" } else { "" };
 
             let is_image = current
                 .as_ref()
@@ -79,7 +126,14 @@ impl App {
                 .unwrap_or(false);
 
             ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
-                ui.label(format!("{name}    {}{loading_note}", self.status));
+                ui.label(name.to_string());
+                if !self.status.is_empty() {
+                    ui.separator();
+                    ui.label(format!("{}{loading_note}", self.status));
+                } else if loading {
+                    ui.separator();
+                    ui.label("Loading…");
+                }
 
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     if ui
