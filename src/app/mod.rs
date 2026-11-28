@@ -94,6 +94,7 @@ pub struct App {
     undo_stack: Vec<Deleted>,
     include_subfolders: bool,
     anim: Option<AnimPlayer>,
+    show_keybinds: bool,
 }
 
 impl App {
@@ -132,6 +133,7 @@ impl App {
             undo_stack: Vec::new(),
             include_subfolders: settings.include_subfolders,
             anim: None,
+            show_keybinds: false,
         };
         match initial {
             Some(p) => app.open_path(p),

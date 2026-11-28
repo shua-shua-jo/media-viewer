@@ -260,3 +260,15 @@ fn favorites_in_subfolders_are_read_as_relative_paths() {
 
     fs::remove_dir_all(&dir).unwrap();
 }
+
+#[test]
+fn every_sort_option_has_its_own_labels() {
+    let mut full: Vec<&str> = Sort::ALL.iter().map(|s| s.label()).collect();
+    let mut short: Vec<&str> = Sort::ALL.iter().map(|s| s.short_label()).collect();
+    full.sort();
+    full.dedup();
+    short.sort();
+    short.dedup();
+    assert_eq!(full.len(), Sort::ALL.len());
+    assert_eq!(short.len(), Sort::ALL.len());
+}

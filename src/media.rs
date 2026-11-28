@@ -58,6 +58,18 @@ impl Sort {
         Sort::SizeAsc,
     ];
 
+    /// A short label for the toolbar's sort dropdown.
+    pub fn short_label(self) -> &'static str {
+        match self {
+            Sort::NameAsc => "Name A-Z",
+            Sort::NameDesc => "Name Z-A",
+            Sort::DateAsc => "Oldest first",
+            Sort::DateDesc => "Newest first",
+            Sort::SizeAsc => "Smallest first",
+            Sort::SizeDesc => "Largest first",
+        }
+    }
+
     pub fn label(self) -> &'static str {
         match self {
             Sort::NameAsc => "Name (A-Z)",
